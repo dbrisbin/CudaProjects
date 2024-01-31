@@ -70,8 +70,8 @@ Perhaps shared memory/SM was a typo and it should read shared memory/block. In t
 Bonus: The chapter specified 2 exercises left for the reader:
 
 1) Revise the following kernel to compute a general matrix multiplication.
-![Alt text](image-3.png)  
-![Alt text](image-2.png)  
+![Alt text](image-3.png)
+![Alt text](image-2.png)
 See matMulImproved.cu
 
 2) Implement the function calculate_appropriate_SM_usage(...) used to compute the optimal number of dynamically allocated bytes required to store the relevant components of input arrays to multiplication in shared memory without exceeding the limits. It should be a function of sharedMemPerBlock obtained from cudaGetDeviceProperties.  

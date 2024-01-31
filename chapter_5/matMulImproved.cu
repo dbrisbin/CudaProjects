@@ -4,7 +4,7 @@
 #include <time.h>
 #include <unistd.h>
 
-#define TILE_WIDTH 1
+#define TILE_WIDTH 2
 
 /// @brief Compute general matrix multiplication using a tiling approach
 /// @param M LHS matrix multiplication operand of size i x j.
@@ -18,7 +18,6 @@ __global__ void matMulSingleElementKernel(float* M, float* N, float* P, int i,
     __shared__ float Mds[TILE_WIDTH][TILE_WIDTH];
     __shared__ float Nds[TILE_WIDTH][TILE_WIDTH];
 
-    __nanosleep(1e9);
     int bx = blockIdx.x;
     int by = blockIdx.y;
     int tx = threadIdx.x;
@@ -31,9 +30,10 @@ __global__ void matMulSingleElementKernel(float* M, float* N, float* P, int i,
 
     int num_phases =
         max(ceil(i / (float)TILE_WIDTH), ceil(k / (float)TILE_WIDTH));
+    num_phases = max(num_phases, (int)ceil(j / (float)TILE_WIDTH));
     for (int phase = 0; phase < num_phases; ++phase) {
         // Collaborative loading of M and N tiles into shared memory.
-        if (row < i && phase * (TILE_WIDTH + tx) < j) {
+        if (row < i && (phase * TILE_WIDTH + tx) < j) {
             Mds[ty][tx] = M[row * j + phase * TILE_WIDTH + tx];
         } else {
             Mds[ty][tx] = 0.0f;
@@ -74,8 +74,11 @@ float matMul(float* M_h, float* N_h, float* P_h, int i, int j, int k,
              void (*kernel)(float*, float*, float*, int, int, int),
              int iters = 1) {
 
-    dim3 dimBlock(32, 32, 1);
-    dim3 dimGrid(ceil((float)i / dimBlock.x), ceil((float)k / dimBlock.y), 1);
+    dim3 dimBlock(TILE_WIDTH, TILE_WIDTH, 1);
+    int gridDim{static_cast<int>(
+        max(max(ceil((float)i / dimBlock.x), ceil((float)j / dimBlock.x)),
+            ceil((float)k / dimBlock.x)))};
+    dim3 dimGrid(gridDim, gridDim, 1);
     float *M_d, *N_d, *P_d;
 
     cudaMalloc((void**)&M_d, i * j * sizeof(float));
@@ -92,7 +95,7 @@ float matMul(float* M_h, float* N_h, float* P_h, int i, int j, int k,
     cudaEventCreate(&stop);
     cudaEventRecord(start, 0);
 
-    for (int i = 0; i < iters; ++i) {
+    for (int iter = 0; iter < iters; ++iter) {
         (*kernel)<<<dimGrid, dimBlock>>>(M_d, N_d, P_d, i, j, k);
     }
 
