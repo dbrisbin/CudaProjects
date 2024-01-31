@@ -66,7 +66,6 @@ __global__ void matMulSingleElementKernel(float* M, float* N, float* P, int i,
 /// @param j # of cols in M and # of rows in N.
 /// @param k # of cols in N and P.
 /// @param kernel kernel function to use.
-
 /// @param iters number of iterations to run for timing. default: 1.
 /// @return Time (in msec) taken to process the kernel (excludes memory
 /// management)

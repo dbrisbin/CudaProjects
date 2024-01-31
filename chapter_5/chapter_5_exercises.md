@@ -75,4 +75,4 @@ Bonus: The chapter specified 2 exercises left for the reader:
 See matMulImproved.cu
 
 2) Implement the function calculate_appropriate_SM_usage(...) used to compute the optimal number of dynamically allocated bytes required to store the relevant components of input arrays to multiplication in shared memory without exceeding the limits. It should be a function of sharedMemPerBlock obtained from cudaGetDeviceProperties.  
-See matMulImprovedDynamicTileSize.cu
+TODO
