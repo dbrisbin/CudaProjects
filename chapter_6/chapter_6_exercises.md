@@ -44,11 +44,11 @@ For each of the following memory accesses, specify whether they are coalesced or
     Each iteration of the for-loop performs 7 FLOPs, 1 to increment k, 1 to increase Pvalue, 4 to compute indices and 1 to multiply.  
     Each iteration of the for-loop performs 2 reads from global memory.  
     Writing to P performs 2 FLOPs and 1 read from global memory.  
-    In the limit, the for-loop will dominate all FLOPs and memory access. Hence, the floating-point to global memory access ratio is approximately 7:2 or 3.5.
+    In the limit, the for-loop will dominate all FLOPs and memory access. Hence, the floating-point to global memory access ratio is approximately 7:8 or .875.
 
     **b)** The kernel described in Chapter 5, Memory Architecture and Data Locality, with shared memory tiling applied using a tile size of 32 x 32.  
     From lines 18-25 computing the indices will take 8 FLOPs, and Pvalue and k will be increased and Mds * Nds will be computed 32 times each. There are only 2 reads from global memory between these lines.  
-    Hence, the ratio is approximately 104:2 or 52.  
+    Hence, the ratio is approximately 104:8 or 13.  
 
     **c)** The kernel described in this chapter with shared memory tiling applied using a tile size of 32 x 32 and thread coarsening applied using a coarsening factor of 4.  
     Considering lines 25 to 37  
@@ -59,4 +59,4 @@ For each of the following memory accesses, specify whether they are coalesced or
     Line 32: 1 read/iteration * 4 iterations = 4 reads.  
     Line 35: Increment k 32 times/outer iteration * 4 iterations = 128 FLOPs.  
     Line 36: Similarly, 256 FLOPs.  
-    Total: 416:5 or 83.2.  
+    Total: 416:20 or 20.8.  
