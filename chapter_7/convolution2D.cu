@@ -186,6 +186,7 @@ __global__ void conv2DTiledCachingConstantMemFilterKernel(float* N, float* P, in
 /// @param filter_radius radius of convolution kernel
 /// @param width width of input and output matrices
 /// @param height height of input and output matrices
+/// @param kernel_to_use kernel to use for computing the convolution
 /// @param iters number of iterations to run for timing. default: 1.
 /// @return Time (in msec) taken to process the kernel (excludes memory management)
 float convolutionDriver(float* N_h, float* F_h, float* P_h, int filter_radius, int width,

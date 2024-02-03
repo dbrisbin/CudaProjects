@@ -61,3 +61,17 @@ See convolution3D.cu.
 
 10) Revise the tiled 2D kernel in Fig. 7.12 to perform 3D convolution.  
 See convolution3D.cu.  
+
+Simple analysis of 3D kernels:
+All 4 kernels presented in the chapter were converted to compute 3d convolution. They were run on several different input size with several different kernel sizes. The average runtime across 5 iterations on a 300x200x100 input with a filter radius of 3 is presented below. The parameters were tuned to find close to optimal performance. The testing device is a 3070Ti mobile GPU
+
+|Kernel | Average Runtime | Pros | Cons
+|---|---|---|---|
+| naive | .095s | Easiest to implement. | Theoretically, should have the worst performance, but in practice, it actually had the best. 
+| naive with filter in constant memory | .108s | Moving the filter into constant memory reduces global memory reads | The added logic may not have been worth it. 
+| tiled with filter in constant memory | 1.20s | Tiling should improve performance | Did very poorly. I believe this is due to the limitation on OUT_TILE_SIZE. Since IN_TILE_SIZE can only be up to 10, OUT_TILE_SIZE is at most 4.
+| tiled exploiting caching | .215s | In theory should have the best performance, exploits automatic hardware features rather than explicitly controlling all resources | In reality did not do great.
+
+An additional note is the average runtime decreased signicantly for each kernel as the number of iterations run increases, an indication that the caching is working correctly.
+
+I was overall quite surprised to see the performance was best with the naive kernel.
