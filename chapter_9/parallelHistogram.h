@@ -1,5 +1,5 @@
-#ifndef STENCIL_3D_H
-#define STENCIL_3D_H
+#ifndef CHAPTER_9_PARALLEL_HISTOGRAM_H
+#define CHAPTER_9_PARALLEL_HISTOGRAM_H
 
 #ifdef __cplusplus
 extern "C"
@@ -24,4 +24,4 @@ __global__ void aggregatedParallelHistogram(int* data, int length, int* hist);
 }
 #endif
 
-#endif  // STENCIL_3D_H
+#endif  // CHAPTER_9_PARALLEL_HISTOGRAM_H

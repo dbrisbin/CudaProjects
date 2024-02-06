@@ -1,5 +1,5 @@
-#ifndef STENCIL_DRIVER_H
-#define STENCIL_DRIVER_H
+#ifndef CHAPTER_9_PARALLEL_HISTOGRAM_DRIVER_H
+#define CHAPTER_9_PARALLEL_HISTOGRAM_DRIVER_H
 
 #ifdef __cplusplus
 extern "C"
@@ -22,4 +22,4 @@ float parallelHistogramDriver(int* data_h, int length, int* hist_h,
 }
 #endif
 
-#endif  // STENCIL_DRIVER_H
+#endif  // CHAPTER_9_PARALLEL_HISTOGRAM_DRIVER_H
