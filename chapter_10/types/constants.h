@@ -11,6 +11,7 @@ enum reductionKernelToUse
 {
     kBasic,
     kCoalescing,
+    kCoalescingModified,
     kSharedMemory,
     kSegmented,
     kCoarsening,

@@ -1,6 +1,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include "reduction.h"
 #include "reductionDriver.h"
 #include "types/constants.h"
 
@@ -10,10 +11,10 @@
 /// @return the result of reduction
 ReductionDataType computeReductionCPU(const ReductionDataType* data, const int length)
 {
-    ReductionDataType result = 0;
+    ReductionDataType result = reductionIdentity();
     for (int i = 0; i < length; ++i)
     {
-        result += data[i];
+        result = reductionOperation(result, data[i]);
     }
     return result;
 }

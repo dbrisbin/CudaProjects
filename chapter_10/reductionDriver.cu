@@ -9,6 +9,7 @@ extern "C" float reductionDriver(const ReductionDataType* data_h, const int leng
 {
     ReductionDataType* data_d;
     ReductionDataType* result_d;
+    ReductionDataType identity = reductionIdentity();
     dim3 dimBlock, dimGrid;
 
     cudaMalloc((void**)&data_d, length * sizeof(ReductionDataType));
@@ -21,6 +22,7 @@ extern "C" float reductionDriver(const ReductionDataType* data_h, const int leng
     for (int iter = 0; iter < iters; ++iter)
     {
         cudaMemcpy(data_d, data_h, length * sizeof(ReductionDataType), cudaMemcpyHostToDevice);
+        cudaMemcpy(result_d, &identity, sizeof(ReductionDataType), cudaMemcpyHostToDevice);
 
         switch (kernel_to_use)
         {
@@ -33,9 +35,46 @@ extern "C" float reductionDriver(const ReductionDataType* data_h, const int leng
                 basicReduction<<<dimGrid, dimBlock>>>(data_d, length, result_d);
                 break;
             case kCoalescing:
+                dimBlock = dim3(TILE_WIDTH, 1, 1);
+                dimGrid = dim3(1, 1, 1);
+                cudaEventCreate(&start);
+                cudaEventCreate(&stop);
+                cudaEventRecord(start, 0);
+                coalescingReduction<<<dimGrid, dimBlock>>>(data_d, length, result_d);
+                break;
+            case kCoalescingModified:
+                dimBlock = dim3(TILE_WIDTH, 1, 1);
+                dimGrid = dim3(1, 1, 1);
+                cudaEventCreate(&start);
+                cudaEventCreate(&stop);
+                cudaEventRecord(start, 0);
+                coalescingReduction<<<dimGrid, dimBlock>>>(data_d, length, result_d);
+                break;
+
             case kSharedMemory:
+                dimBlock = dim3(TILE_WIDTH, 1, 1);
+                dimGrid = dim3(1, 1, 1);
+                cudaEventCreate(&start);
+                cudaEventCreate(&stop);
+                cudaEventRecord(start, 0);
+                sharedMemoryReduction<<<dimGrid, dimBlock>>>(data_d, length, result_d);
+                break;
             case kSegmented:
+                dimBlock = dim3(TILE_WIDTH, 1, 1);
+                dimGrid = dim3(1, 1, 1);
+                cudaEventCreate(&start);
+                cudaEventCreate(&stop);
+                cudaEventRecord(start, 0);
+                segmentedReduction<<<dimGrid, dimBlock>>>(data_d, length, result_d);
+                break;
             case kCoarsening:
+                dimBlock = dim3(TILE_WIDTH, 1, 1);
+                dimGrid = dim3(1, 1, 1);
+                cudaEventCreate(&start);
+                cudaEventCreate(&stop);
+                cudaEventRecord(start, 0);
+                coarseningReduction<<<dimGrid, dimBlock>>>(data_d, length, result_d);
+                break;
             case kNumKernels:
             default:
                 break;

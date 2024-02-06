@@ -3,10 +3,12 @@ At the start of the fifth iteration, there are $\frac{1024}{2^4} = 64$ elements 
 2) For the improved reduction kernel in Fig. 10.9, if the number of elements is 1024 and the warp size is 32, how many warps will have divergence during the fifth iteration?  
 At the start of the fifth iteration, there are $\frac{1024}{2^4} = 64$ elements to be considered. Thus, 30 warps will be inactive with no divergence, and 2 warps will be active with no divergence. Therefore, no warps will have divergence.
 3) Modify the kernel in Fig. 10.9 to use the access pattern illustrated below.  
+![alt text](image-2.png)  
 See `reduction.cu`  
 4) Modify the kernel in Fig. 10.15 to perform a max reduction instead of a sum reduction.  
-See `reduction.cu`  
+See `reduction.cu`. Simply change the reduction operation to return the max rather than the sum.  Additionally, the implementation supports min, boolean xor, or and and.  
 5) Modify the kernel in Fig. 10.15 to work for an arbitrary length input that is not necessarily a multiple of `COARSE_FACTOR x 2 x blockDim.x`. Add an extra parameter N to the kernel that represents the length of the input.  
+All kernels work for arbitrary length inputs.  
 See `reduction.cu`  
 6) Assume that parallel reduction is to be applied on the following input array:  
 [6 2 7 4 5 8 3 1]  
