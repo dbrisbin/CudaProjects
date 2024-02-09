@@ -5,6 +5,11 @@
 #include "parallel_scan_driver.h"
 #include "types/constants.h"
 
+/// @brief Compare two arrays for equality. Does not check that lengths are equal.
+/// @param actual first array to check for equality
+/// @param expected second array to check for equality
+/// @param length length up to which to check for equality
+/// @return true if the arrays are equal up to length length, false otherwise
 bool ArraysAreEqual(const ParallelScanDataType* actual, const ParallelScanDataType* expected,
                     const unsigned int length)
 {
@@ -18,7 +23,7 @@ bool ArraysAreEqual(const ParallelScanDataType* actual, const ParallelScanDataTy
     return true;
 }
 
-/// @brief Print a histogram to standard output
+/// @brief Print a histogram to standard output.
 /// @param arr array to print
 /// @param length length of array to print
 void PrintArr(const ParallelScanDataType* arr, const unsigned int length)
@@ -30,12 +35,12 @@ void PrintArr(const ParallelScanDataType* arr, const unsigned int length)
     printf("\n");
 }
 
-/// @brief Compute the parallel scan of data using addition operation
-/// @param data data on which to compute the parallel scan
-/// @param[out] result array in which to store the result of parallel scan
+/// @brief Compute the inclusive scan of data using the parallel scan operation.
+/// @param data data on which to compute the inclusive scan
+/// @param[out] result array in which to store the result of inclusive scan
 /// @param length length of the data array
-void ComputeParallelScanCPU(const ParallelScanDataType* data, ParallelScanDataType* result,
-                            const unsigned int length)
+void ComputeInclusiveScanCPU(const ParallelScanDataType* data, ParallelScanDataType* result,
+                             const unsigned int length)
 {
     if (length == 0)
     {
@@ -49,6 +54,25 @@ void ComputeParallelScanCPU(const ParallelScanDataType* data, ParallelScanDataTy
     }
 }
 
+/// @brief Compute the exclusive scan of data using the parallel scan operation.
+/// @param data data on which to compute the exclusive scan
+/// @param[out] result array in which to store the result of exclusive scan
+/// @param length length of the data array
+void ComputeExclusiveScanCPU(const ParallelScanDataType* data, ParallelScanDataType* result,
+                             const unsigned int length)
+{
+    if (length == 0)
+    {
+        return;
+    }
+
+    result[0] = ParallelScanIdentity();
+    if (length == 1)
+    {
+        return;
+    }
+    ComputeInclusiveScanCPU(data, result + 1, length - 1);
+}
 int main(int argc, char* argv[])
 {
     if (argc < 3)
@@ -73,6 +97,11 @@ int main(int argc, char* argv[])
         return 1;
     }
 
+    bool inclusive_scan =
+        !(kernel_to_use == kKoggeStoneExclusive ||
+          kernel_to_use == kKoggeStoneDoubleBufferingExclusive ||
+          kernel_to_use == kBrentKungExclusive || kernel_to_use == kCoarseningExclusive);
+
     unsigned int length;
     int scanf_result = fscanf(file_ptr, "%u", &length);
     ParallelScanDataType* data;
@@ -95,13 +124,21 @@ int main(int argc, char* argv[])
         return 1;
     }
 
-    int iters = 1;
+    int iters = 100;
     // compute the parallel scan.
     float time_to_compute_parallel_scan =
-        ParallelScanDriver(data, result, length, kernel_to_use, iters);
+        ParallelScanDriver(data, result, length, kernel_to_use, iters, inclusive_scan);
 
     printf("Took %.1f msec for %d iterations.\n", time_to_compute_parallel_scan, iters);
-    ComputeParallelScanCPU(data, expected, length);
+    if (inclusive_scan)
+    {
+        ComputeInclusiveScanCPU(data, expected, length);
+    }
+    else
+    {
+        ComputeExclusiveScanCPU(data, expected, length);
+    }
+
     if (!ArraysAreEqual(result, expected, length))
     {
         printf("\nResults are not equal!\n");
@@ -109,11 +146,16 @@ int main(int argc, char* argv[])
         PrintArr(expected, length);
 
         printf("\nActual:\n");
+        PrintArr(result, length);
     }
     else
     {
         printf("\nResult is correct!\n");
+        if (length < 100)
+        {
+            PrintArr(result, length);
+        }
     }
-    PrintArr(result, length);
+
     return 0;
 }
