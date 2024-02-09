@@ -16,3 +16,6 @@ Thus the total number of adds in the reduction tree and inverse reduction tree p
 See `KoggeStoneExclusiveKernel()` in `parallel_scan.cu`.  
 8) Complete the host code and all three kernels for the segmented parallel scan algorithm in Fig. 11.9.  
 See `ThreadCoarseningSegmentedScanKernelPhase1()`, `ThreadCoarseningInclusiveKernel()`, and `ThreadCoarseningSegmentedScanKernelPhase3()` in `parallel_scan.cu`.
+
+Bonus:  
+The stream-based scan algorithm described in 11.7 is implemented. See `StreamingKernel()` in `parallel_scan.cu`. I couldn't be bothered to compute the appropriate index for shared memory when `i > length`, so a potential improvement is computing that index and using shared memory, rather than global memory in the final phase of the kernel.

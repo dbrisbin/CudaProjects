@@ -19,6 +19,7 @@ enum parallelScanKernelToUse
     kCoarseningInclusive,
     kCoarseningExclusive,
     kCoarseningSegmented,
+    kStreaming,
     kNumKernels
 };
 

@@ -21,8 +21,7 @@ extern "C"
 /// provided.
 float ParallelScanDriver(const ParallelScanDataType* data_h, ParallelScanDataType* result_h,
                          const unsigned int length,
-                         const enum parallelScanKernelToUse kernel_to_use, const int iters,
-                         const bool inclusive_scan);
+                         const enum parallelScanKernelToUse kernel_to_use, const int iters);
 
 #ifdef __cplusplus
 }

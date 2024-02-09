@@ -1,13 +1,13 @@
 #ifndef CHAPTER_11_PARALLEL_SCAN_H
 #define CHAPTER_11_PARALLEL_SCAN_H
 
+#include <cuda_runtime.h>
+#include "types/types.h"
+
 #ifdef __cplusplus
 extern "C"
 {
 #endif
-
-#include <cuda_runtime.h>
-#include "types/types.h"
 
 __device__ int block_counter = 0;
 
@@ -21,6 +21,12 @@ __device__ __host__ ParallelScanDataType ParallelScanOperation(const ParallelSca
 /// @brief Return the identity element for the operation in ParallelScanOperation().
 /// @return an identity element
 __device__ __host__ ParallelScanDataType ParallelScanIdentity();
+
+/// @brief Set every element of input array to specified value.
+/// @param data array to set
+/// @param length length of data
+/// @param val value to set every element to
+__global__ void ResetArray(int* data, unsigned int length, int val);
 
 /// @brief Compute inclusive scan using the Kogge-Stone algorithm.
 /// @param data data on which to compute inclusive scan
@@ -106,7 +112,7 @@ __global__ void ThreadCoarseningSegmentedScanKernelPhase3(ParallelScanDataType* 
 /// @param[out] result result of inclusive scan
 /// @param length length of data
 __global__ void StreamingKernel(ParallelScanDataType* data, ParallelScanDataType* result,
-                                unsigned int length);
+                                int* flags, ParallelScanDataType* scan_value, unsigned int length);
 
 #ifdef __cplusplus
 }

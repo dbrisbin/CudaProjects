@@ -124,10 +124,10 @@ int main(int argc, char* argv[])
         return 1;
     }
 
-    int iters = 100;
+    int iters = 1;
     // compute the parallel scan.
     float time_to_compute_parallel_scan =
-        ParallelScanDriver(data, result, length, kernel_to_use, iters, inclusive_scan);
+        ParallelScanDriver(data, result, length, kernel_to_use, iters);
 
     printf("Took %.1f msec for %d iterations.\n", time_to_compute_parallel_scan, iters);
     if (inclusive_scan)

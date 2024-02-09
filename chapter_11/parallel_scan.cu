@@ -9,6 +9,15 @@ __device__ __host__ ParallelScanDataType ParallelScanOperation(const ParallelSca
 
 __device__ __host__ ParallelScanDataType ParallelScanIdentity() { return 0; }
 
+__global__ void ResetArray(int* data, unsigned int length, int val)
+{
+    unsigned int idx = CFACTOR * blockIdx.x * blockDim.x + threadIdx.x;
+    for (unsigned int i = idx; i < min(CFACTOR * blockDim.x, length); i += blockDim.x)
+    {
+        data[i] = val;
+    }
+}
+
 __global__ void KoggeStoneInclusiveKernel(ParallelScanDataType* data, ParallelScanDataType* result,
                                           unsigned int length)
 {
@@ -513,11 +522,17 @@ __global__ void ThreadCoarseningSegmentedScanKernelPhase3(ParallelScanDataType* 
 }
 
 __global__ void StreamingKernel(ParallelScanDataType* data, ParallelScanDataType* result,
-                                unsigned int length)
+                                int* flags, ParallelScanDataType* scan_value, unsigned int length)
 {
     __shared__ ParallelScanDataType XY[CFACTOR * SECTION_SIZE];
+    __shared__ unsigned int dyn_block_id_s;
     unsigned int tx = threadIdx.x;
-    unsigned int dyn_block_id = atomicAdd(&block_counter, 1);
+    if (tx == 0)
+    {
+        dyn_block_id_s = atomicAdd(&block_counter, 1);
+    }
+    __syncthreads();
+    unsigned int dyn_block_id = dyn_block_id_s;
     unsigned int i = CFACTOR * dyn_block_id * blockDim.x + tx;
     // load data into shared memory.
     for (unsigned int offset = 0; offset < CFACTOR * SECTION_SIZE; offset += blockDim.x)
@@ -578,12 +593,30 @@ __global__ void StreamingKernel(ParallelScanDataType* data, ParallelScanDataType
     __shared__ ParallelScanDataType previous_sum;
     if (threadIdx.x == 0)
     {
-        while (atomicAdd(&flags[dyn_block_id], 0) == 0)
-        {}
+        if (dyn_block_id != 0)
+        {
+            while (atomicAdd(&flags[dyn_block_id - 1], 0) == 0)
+            {}
+            previous_sum = scan_value[dyn_block_id - 1];
+        }
+        else
+        {
+            previous_sum = ParallelScanIdentity();
+        }
+        scan_value[dyn_block_id] =
+            previous_sum + result[min(length - 1, CFACTOR * (dyn_block_id + 1) * blockDim.x - 1)];
+        atomicAdd(&flags[dyn_block_id], 1);
     }
-    if (tx == 0)
+    __syncthreads();
+
+    if (dyn_block_id != 0)
     {
-        end_vals[dyn_block_id] =
-            result[min(length - 1, CFACTOR * (dyn_block_id + 1) * blockDim.x - 1)];
+        for (unsigned int offset = 0; offset < CFACTOR * SECTION_SIZE; offset += blockDim.x)
+        {
+            if (i + offset < length)
+            {
+                result[i + offset] = ParallelScanOperation(previous_sum, result[i + offset]);
+            }
+        }
     }
 }
