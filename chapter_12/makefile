@@ -22,39 +22,50 @@ RELFLAGS = -O3 -DNDEBUG
 GENERATOR_SRC = generate_merge_data.cpp
 GENERATOR_EXE = generate_merge_data
 
-.PHONY: all clean debug prep release remake
+DOC_CONFIG = doxygen.conf
+DOC_DIRS = html latex
+
+.PHONY: all clean debug release remake documentation generate_merge_data
 
 debug: $(DBGEXE)
 
-$(DBGEXE): 	$(DBGOBJS)	
+$(DBGEXE):	$(DBGOBJS)
+	@mkdir -p $(DBGDIR)
 	$(NVCC) --compiler-options $(CFLAGS) $(DBGFLAGS) -o $(DBGEXE) $^
 
+
 $(DBGDIR)/%.o: %.cu
+	@mkdir -p $(DBGDIR)
 	$(NVCC) -c --compiler-options $(CFLAGS) $(CUCOMPILEFLAGS) $(DBGFLAGS) -o $@ $<
 
 $(DBGDIR)/%.o: %.cpp
+	@mkdir -p $(DBGDIR)
 	$(NVCC) -c  --compiler-options $(CFLAGS) $(CUCOMPILEFLAGS) $(DBGFLAGS) -o $@ $<
 
 release: $(RELEXE)
 
 $(RELEXE): $(RELOBJS)
+	@mkdir -p $(RELDIR)
 	$(NVCC) --compiler-options $(CFLAGS) $(RELFLAGS) -o $(RELEXE) $^
 
 $(RELDIR)/%.o: %.cu
+	@mkdir -p $(RELDIR)
 	$(NVCC) -c --compiler-options $(CFLAGS) $(CUCOMPILEFLAGS) $(RELFLAGS) -o $@ $^
 
 $(RELDIR)/%.o: %.cpp
+	@mkdir -p $(RELDIR)
 	$(NVCC) -c --compiler-options $(CFLAGS) $(CUCOMPILEFLAGS) $(RELFLAGS) -o $@ $^
 
 generate_merge_data:
 	$(NVCC) -o $(GENERATOR_EXE) $(GENERATOR_SRC)
 
-prep:	
-	@mkdir -p $(DBGDIR) $(RELDIR)
+documentation:
+	doxygen $(DOC_CONFIG)
 
-all: debug release generate_merge_data
+all:prep debug release generate_merge_data documentation
 
 clean:
 	rm -f $(RELEXE) $(RELOBJS) $(DBGEXE) $(DBGOBJS) $(GENERATOR_EXE)
+	rm -fr $(DOC_DIRS) $(DBGDIR) $(RELDIR)
 
 remake: clean all

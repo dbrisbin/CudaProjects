@@ -1,3 +1,6 @@
+/// @file merge_driver.cu
+/// @brief Definition of driver function declared in merge_driver.h.
+
 #include <stdio.h>
 #include "merge.h"
 #include "merge_driver.h"
@@ -43,7 +46,7 @@ float MergeDriver(const std::pair<int, int>* A_h, const int m, const std::pair<i
                 dim_block = dim3(SECTION_SIZE, 1, 1);
                 dim_grid = dim3(
                     ceil(static_cast<double>(length) / NUM_ELTS_PER_THREAD / SECTION_SIZE), 1, 1);
-                basicKernel<<<dim_grid, dim_block>>>(A_d, m, B_d, n, C_d);
+                BasicKernel<<<dim_grid, dim_block>>>(A_d, m, B_d, n, C_d);
                 break;
             case MergeKernel::kTiled:
                 dim_block = dim3(BLOCKSIZE_FOR_TILED, 1, 1);
@@ -51,8 +54,26 @@ float MergeDriver(const std::pair<int, int>* A_h, const int m, const std::pair<i
                 shared_mem_size =
                     2 * NUM_ELTS_PER_TILE * sizeof(std::pair<int, int>) + 4 * sizeof(int);
                 printf("\nUsed: %dB\n", shared_mem_size);
-                tiledKernel<<<dim_grid, dim_block, shared_mem_size>>>(A_d, m, B_d, n, C_d,
+                TiledKernel<<<dim_grid, dim_block, shared_mem_size>>>(A_d, m, B_d, n, C_d,
                                                                       NUM_ELTS_PER_TILE);
+                break;
+            case MergeKernel::kModifiedTiled:
+                dim_block = dim3(BLOCKSIZE_FOR_TILED, 1, 1);
+                dim_grid = dim3(ceil(static_cast<double>(length) / OUTPUT_ELTS_PER_BLOCK), 1, 1);
+                shared_mem_size =
+                    2 * NUM_ELTS_PER_TILE * sizeof(std::pair<int, int>) + 4 * sizeof(int);
+                printf("\nUsed: %dB\n", shared_mem_size);
+                TiledKernel<<<dim_grid, dim_block, shared_mem_size>>>(A_d, m, B_d, n, C_d,
+                                                                      NUM_ELTS_PER_TILE);
+                break;
+            case MergeKernel::kCircularBuffer:
+                dim_block = dim3(BLOCKSIZE_FOR_TILED, 1, 1);
+                dim_grid = dim3(ceil(static_cast<double>(length) / OUTPUT_ELTS_PER_BLOCK), 1, 1);
+                shared_mem_size =
+                    2 * NUM_ELTS_PER_TILE * sizeof(std::pair<int, int>) + 4 * sizeof(int);
+                printf("\nUsed: %dB\n", shared_mem_size);
+                CircularBufferKernel<<<dim_grid, dim_block, shared_mem_size>>>(A_d, m, B_d, n, C_d,
+                                                                               NUM_ELTS_PER_TILE);
                 break;
             case MergeKernel::kNumKernels:
             default:

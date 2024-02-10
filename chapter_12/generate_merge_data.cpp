@@ -1,3 +1,7 @@
+/// @file generate_merge_data.cpp
+/// @brief A utility to generate data to be used by merge kernels. The file produces two
+/// (potentially unequal length) sorted arrays of type pair<int, int>.
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -5,7 +9,6 @@
 #include <utility>
 #include <vector>
 #include "types/constants.h"
-#include "types/types.h"
 
 #define MAX_VAL 10000
 

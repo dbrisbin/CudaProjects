@@ -1,3 +1,7 @@
+/// @file main.cpp
+/// @brief Main function to call the kernel driver to call the appropriate kernel, as determined by
+/// input argument, on an input file.
+
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -102,10 +106,26 @@ int main(int argc, char* argv[])
     {
         printf("\nResults are not equal!\n");
         printf("Expected:\n");
-        PrintArr(C_expected, m + n);
+        if (m + n < 100)
+        {
+            PrintArr(C_expected, m + n);
+        }
+        else
+        {
+            PrintArr(C_expected, 100);
+            printf("...\n");
+        }
 
         printf("\nActual:\n");
-        PrintArr(C, m + n);
+        if (m + n < 100)
+        {
+            PrintArr(C, m + n);
+        }
+        else
+        {
+            PrintArr(C, 100);
+            printf("...\n");
+        }
     }
     else
     {
@@ -113,6 +133,11 @@ int main(int argc, char* argv[])
         if (m + n < 100)
         {
             PrintArr(C, m + n);
+        }
+        else
+        {
+            PrintArr(C, 100);
+            printf("...\n");
         }
     }
 

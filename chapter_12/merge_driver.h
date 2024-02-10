@@ -1,3 +1,7 @@
+/// @file merge_driver.h
+/// @brief Declaration of driver function to setup and call the appropriate kernel to compute the
+/// merge of sorted arrays on GPU.
+
 #ifndef CHAPTER_12_MERGE_DRIVER_H
 #define CHAPTER_12_MERGE_DRIVER_H
 
