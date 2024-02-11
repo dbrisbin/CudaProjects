@@ -4,10 +4,10 @@ NVCC = nvcc
 CFLAGS = -Wall,-Werror,-Wextra
 CUCOMPILEFLAGS = --device-c
 
-CU_SRCS = merge_driver.cu merge.cu merge_utils.cu
+CU_SRCS = sort_driver.cu sort.cu sort_utils.cu
 CPP_SRCS = main.cpp
 OBJS = $(CU_SRCS:.cu=.o) $(CPP_SRCS:.cpp=.o)
-EXECUTABLE=merge
+EXECUTABLE=sort
 
 DBGDIR = debug
 DBGEXE = $(DBGDIR)/$(EXECUTABLE)
@@ -19,13 +19,13 @@ RELEXE = $(RELDIR)/$(EXECUTABLE)
 RELOBJS = $(addprefix $(RELDIR)/, $(OBJS))
 RELFLAGS = -O3 -DNDEBUG
 
-GENERATOR_SRC = generate_merge_data.cpp
-GENERATOR_EXE = generate_merge_data
+GENERATOR_SRC = generate_sort_data.cpp
+GENERATOR_EXE = generate_sort_data
 
 DOC_CONFIG = doxygen.conf
 DOC_DIRS = html latex
 
-.PHONY: all clean debug release remake documentation generate_merge_data
+.PHONY: all clean debug release remake documentation generate_sort_data
 
 debug: $(DBGEXE)
 
@@ -56,13 +56,13 @@ $(RELDIR)/%.o: %.cpp
 	@mkdir -p $(RELDIR)
 	$(NVCC) -c --compiler-options $(CFLAGS) $(CUCOMPILEFLAGS) $(RELFLAGS) -o $@ $^
 
-generate_merge_data:
+generate_sort_data:
 	$(NVCC) -o $(GENERATOR_EXE) $(GENERATOR_SRC)
 
 documentation:
 	doxygen $(DOC_CONFIG)
 
-all: debug release generate_merge_data documentation
+all: debug release generate_sort_data documentation
 
 clean:
 	rm -f $(RELEXE) $(RELOBJS) $(DBGEXE) $(DBGOBJS) $(GENERATOR_EXE)
