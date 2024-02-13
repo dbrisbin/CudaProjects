@@ -18,9 +18,21 @@ __global__ void RadixSortIter(unsigned int* data, unsigned int* output, unsigned
                               const unsigned int iter, unsigned int* flags,
                               unsigned int* scan_values);
 
+/// @brief Perform the first phase of an iteration of radix sort on input and store the result in
+/// @param data the input data
+/// @param output the output data
+/// @param bits the bit values of the current radix
+/// @param length the length of the input, output, and bits
+/// @param iter the current iteration of radix sort
 __global__ void RadixSortIterPhase1(const unsigned int* data, unsigned int* bits,
                                     const unsigned int length, const unsigned int iter);
 
+/// @brief Perform the second phase of an iteration of radix sort on input and store the result in
+/// @param data the input data
+/// @param output the output data
+/// @param bits the bit values of the current radix
+/// @param length the length of the input, output, and bits
+/// @param iter the current iteration of radix sort
 __global__ void RadixSortIterPhase2(const unsigned int* data, unsigned int* output,
                                     const unsigned int* bits, const unsigned int length,
                                     const unsigned int iter);
