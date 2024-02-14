@@ -15,7 +15,8 @@ enum class SpmvKernel : int
     kCsrSpmv = 1,
     kEllSpmv = 2,
     kEllCooSpmv = 3,
-    kNumKernels = 4
+    kJdsSpmv = 4,
+    kNumKernels = 5
 };
 
 #endif  // CHAPTER_14_TYPES_CONSTANTS_H

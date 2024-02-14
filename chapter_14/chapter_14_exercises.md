@@ -13,5 +13,6 @@ Represent it in each of the following formats: (1) COO, (2) CSR, (3) ELL, and (4
 3) Implement the code to convert from COO to CSR using fundamental parallel computing primitives, including histogram and prefix sum.
 See `chapter_14/convert_coo_to_csr_driver.cu` and `chapter_14/spmv_utils.cu`. Note the implementation does not support matrices with more than 1024 rows, though it could be extended to do so.  
 4) Implement the host code for producing the hybrid ELL-COO format and using it to perform SpMV. Launch the ELL kernel to execute on the device, and compute the contributions of the COO elements on the host.  
-
-5) Implement a kernel that performs parallel SpMV using a matrix stored in the JDS format.
+See `chapter_14/spmv_driver.h`, `chapter_14/spmv_utils.cu`, and `chapter_14/spmv.cu`.
+5) Implement a kernel that performs parallel SpMV using a matrix stored in the JDS format.  
+See `chapter_14/spmv_driver.h`, `chapter_14/spmv_utils.cu`, and `chapter_14/spmv.cu`.

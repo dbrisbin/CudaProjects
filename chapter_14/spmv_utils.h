@@ -96,6 +96,20 @@ __host__ void UncompressedToELLCOO(const float* matrix, const int rows, const in
                                    float* ell_values, int* ell_col_indices, int* ell_nnz_per_row,
                                    float* coo_values, int* coo_row_indices, int* coo_col_indices,
                                    int* max_nnz_per_row_ell, int* num_nnz_coo);
+
+/// @brief Convert a dense matrix to JDS format.
+/// @param matrix matrix stored in dense format
+/// @param rows number of rows in the matrix
+/// @param cols number of cols in the matrix
+/// @param[out] values values of the non-zero elements stored in JDS format
+/// @param[out] col_indices values of the column of the non-zero elements stored in JDS format
+/// @param[out] row_permutation permutation of the rows
+/// @param[out] iter_ptr pointer to the start of each new column in the column-major format
+/// @param[out] max_nnz maximum number of non-zero elements in a column
+__host__ void UncompressedToJDS(const float* matrix, const int rows, const int cols, float* values,
+                                int* col_indices, int* row_permutation, int* iter_ptr,
+                                const int max_nnz_per_row);
+
 /// @brief Reset an array to a given value.
 /// @param data array to reset
 /// @param length length of the array

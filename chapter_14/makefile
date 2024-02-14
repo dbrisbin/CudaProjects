@@ -68,7 +68,7 @@ documentation:
 all: debug release generate_sparse_matrix_data documentation
 
 clean:
-	rm -f $(RELEXE) $(RELOBJS) $(DBGEXE) $(DBGOBJS) $(GENERATOR_EXE)
+	rm -f $(RELEXE) $(RELOBJS) $(DBGEXE) $(DBGOBJS) $(GENERATOR_EXE) convert_coo_to_csr
 	rm -fr $(DOC_DIRS) $(DBGDIR) $(RELDIR)
 
 remake: clean all

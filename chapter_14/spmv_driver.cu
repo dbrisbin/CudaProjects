@@ -12,10 +12,12 @@ float SpMVDriver(const float* mat_h, const float* vec_h, float* result_h, const 
                  const int iters, const SpmvKernel kernel_to_use)
 {
     float *values_d{}, *vec_d{}, *result_d{}, *values_h{};
-    int *col_indices_d{}, *row_indices_d{}, *row_pointers_d{}, *nnz_per_row_d{}, *col_indices_h{},
-        *row_indices_h{}, *nnz_per_row_h{}, *row_pointers_h{};
+    int *col_indices_d{}, *row_indices_d{}, *row_pointers_d{}, *nnz_per_row_d{},
+        *row_permutation_d{}, *iter_ptr_d{}, *col_indices_h{}, *row_indices_h{}, *nnz_per_row_h{},
+        *row_pointers_h{}, *row_permutation_h{}, *iter_ptr_h{};
     const int length = m * n;
     int max_nnz_per_row_ell;
+    const auto max_nnz_per_row = MaxNnzPerRow(mat_h, m, n);
     int number_of_nnz_elts =
         std::count_if(mat_h, mat_h + length, [](float i) { return std::fabs(i) > FLOAT_EPS; });
 
@@ -85,7 +87,6 @@ float SpMVDriver(const float* mat_h, const float* vec_h, float* result_h, const 
         case SpmvKernel::kEllSpmv:
         {
             // Convert to ELL format
-            const auto max_nnz_per_row = MaxNnzPerRow(mat_h, m, n);
             values_h = new float[max_nnz_per_row * m];
             col_indices_h = new int[max_nnz_per_row * m];
             nnz_per_row_h = new int[m + 1];
@@ -112,7 +113,6 @@ float SpMVDriver(const float* mat_h, const float* vec_h, float* result_h, const 
         case SpmvKernel::kEllCooSpmv:
         {
             // Convert to ELL-COO format
-            const auto max_nnz_per_row = MaxNnzPerRow(mat_h, m, n);
             values_h = new float[number_of_nnz_elts];
             col_indices_h = new int[number_of_nnz_elts];
             row_indices_h = new int[number_of_nnz_elts];
@@ -142,6 +142,40 @@ float SpMVDriver(const float* mat_h, const float* vec_h, float* result_h, const 
             delete[] nnz_per_row_h;
         }
         break;
+        case SpmvKernel::kJdsSpmv:
+        {
+            // Convert to JDS format
+            values_h = new float[number_of_nnz_elts];
+            col_indices_h = new int[number_of_nnz_elts];
+            row_permutation_h = new int[m];
+            iter_ptr_h = new int[max_nnz_per_row + 1];
+            UncompressedToJDS(mat_h, m, n, values_h, col_indices_h, row_permutation_h, iter_ptr_h,
+                              max_nnz_per_row);
+
+            // Allocate device memory
+            cudaMalloc((void**)&values_d, number_of_nnz_elts * sizeof(float));
+            cudaMalloc((void**)&col_indices_d, number_of_nnz_elts * sizeof(int));
+            cudaMalloc((void**)&row_permutation_d, (m + 1) * sizeof(int));
+            cudaMalloc((void**)&iter_ptr_d, (max_nnz_per_row + 1) * sizeof(int));
+
+            // Copy data to device
+            cudaMemcpy(values_d, values_h, number_of_nnz_elts * sizeof(float),
+                       cudaMemcpyHostToDevice);
+            cudaMemcpy(col_indices_d, col_indices_h, number_of_nnz_elts * sizeof(int),
+                       cudaMemcpyHostToDevice);
+            cudaMemcpy(row_permutation_d, row_permutation_h, (m) * sizeof(int),
+                       cudaMemcpyHostToDevice);
+            cudaMemcpy(iter_ptr_d, iter_ptr_h, (max_nnz_per_row + 1) * sizeof(int),
+                       cudaMemcpyHostToDevice);
+
+            // delete host memory
+            delete[] iter_ptr_h;
+            delete[] row_permutation_h;
+            // delete[] col_indices_h;
+            // delete[] values_h;
+        }
+        break;
+
         case SpmvKernel::kNumKernels:
         default:
             printf("Invalid kernel selected! Try again!\n");
@@ -201,7 +235,7 @@ float SpMVDriver(const float* mat_h, const float* vec_h, float* result_h, const 
             {
                 dim_block = dim3(SECTION_SIZE, 1, 1);
                 dim_grid = dim3(ceil(static_cast<double>(m) / SECTION_SIZE), 1, 1);
-                // Compute the ELL part
+                // Compute the ELL part on device
                 EllSpmvKernel<<<dim_grid, dim_block>>>(values_d, col_indices_d, nnz_per_row_d,
                                                        vec_d, result_d, m);
                 err = cudaMemcpy(result_h, result_d, m * sizeof(float), cudaMemcpyDeviceToHost);
@@ -212,12 +246,26 @@ float SpMVDriver(const float* mat_h, const float* vec_h, float* result_h, const 
                 // Compute the COO part on host
                 float* coo_result_h = new float[m];
                 CooSpmvCPU(values_h, row_indices_h, col_indices_h, vec_h, coo_result_h,
-                           number_of_nnz_elts);
+                           number_of_nnz_elts, m);
+                printf("number of nnz elements: %d\n", number_of_nnz_elts);
 
                 // Add the ELL and COO results
                 std::transform(result_h, result_h + m, coo_result_h, result_h, std::plus<float>());
             }
             break;
+            case SpmvKernel::kJdsSpmv:
+                dim_block = dim3(SECTION_SIZE, 1, 1);
+                dim_grid = dim3(ceil(static_cast<double>(m) / SECTION_SIZE), 1, 1);
+                JdsSpmvKernel<<<dim_grid, dim_block>>>(values_d, col_indices_d, row_permutation_d,
+                                                       iter_ptr_d, vec_d, result_d, m,
+                                                       max_nnz_per_row);
+
+                err = cudaMemcpy(result_h, result_d, m * sizeof(float), cudaMemcpyDeviceToHost);
+                if (err != cudaSuccess)
+                {
+                    printf("%s in %s at line %d.\n", cudaGetErrorString(err), __FILE__, __LINE__);
+                }
+                break;
             case SpmvKernel::kNumKernels:
             default:
                 printf("Invalid kernel selected! Try again!\n");
@@ -230,6 +278,12 @@ float SpMVDriver(const float* mat_h, const float* vec_h, float* result_h, const 
         total_time += time;
     }
 
+    cudaEventDestroy(start);
+    cudaEventDestroy(stop);
+    cudaFree(iter_ptr_d);
+    cudaFree(row_permutation_d);
+    cudaFree(nnz_per_row_d);
+    cudaFree(row_pointers_d);
     cudaFree(row_indices_d);
     cudaFree(col_indices_d);
     cudaFree(result_d);

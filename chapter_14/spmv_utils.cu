@@ -167,7 +167,21 @@ __host__ void UncompressedToELLCOO(const float* matrix, const int rows, const in
     int max_nnz_per_row{static_cast<int>(mean_nnz_per_row + stdev_nnz_per_row)};
     float* values_ = new float[max_nnz_per_row * rows];
     int* col_indices_ = new int[max_nnz_per_row * rows];
+    int num_nnz = mean_nnz_per_row * rows;
 
+    // Fill values and col_indices arrays with zeros
+    for (int i = 0; i < max_nnz_per_row * rows; ++i)
+    {
+        values_[i] = 0;
+        col_indices_[i] = 0;
+    }
+    // Fill CoO values and indices arrays with zeros
+    for (int i = 0; i < num_nnz; ++i)
+    {
+        coo_values[i] = 0.0;
+        coo_row_indices[i] = 0;
+        coo_col_indices[i] = 0;
+    }
     for (int i = 0; i < rows; ++i)
     {
         int nnz{0};
@@ -314,5 +328,57 @@ __global__ void ConvertCOOToCSR(const float* values, const int* row_indices, con
         int dest = csr_row_pointers[row] + atomicAdd(&hist[row], 1);
         csr_values[dest] = values[j];
         csr_col_indices[dest] = col_indices[j];
+    }
+}
+
+__host__ void UncompressedToJDS(const float* matrix, const int rows, const int cols, float* values,
+                                int* col_indices, int* row_permutation, int* iter_ptr,
+                                const int max_nnz_per_row)
+{
+    float* values_ = new float[max_nnz_per_row * rows];
+    int* col_indices_ = new int[max_nnz_per_row * rows];
+    std::pair<int, int>* nnz_per_row = new std::pair<int, int>[rows];
+
+    for (int i = 0; i < rows; ++i)
+    {
+        int nnz{0};
+        for (int j = 0; j < cols; ++j)
+        {
+            if (std::fabs(matrix[i * cols + j]) > FLOAT_EPS)
+            {
+                values_[i * max_nnz_per_row + nnz] = matrix[i * cols + j];
+                col_indices_[i * max_nnz_per_row + nnz] = j;
+                ++nnz;
+            }
+        }
+        nnz_per_row[i] = std::make_pair(nnz, i);
+    }
+
+    std::sort(nnz_per_row, nnz_per_row + rows, std::greater<std::pair<int, int>>());
+
+    for (int i = 0; i < rows; ++i)
+    {
+        row_permutation[i] = nnz_per_row[i].second;
+    }
+
+    *iter_ptr++ = 0;
+    int num_elts{0};
+    for (int j = 0; j < max_nnz_per_row; ++j)
+    {
+        for (int i = 0; i < rows; ++i)
+        {
+            int row = row_permutation[i];
+            if (j < nnz_per_row[i].first)
+            {
+                *values++ = values_[row * max_nnz_per_row + j];
+                *col_indices++ = col_indices_[row * max_nnz_per_row + j];
+                ++num_elts;
+            }
+            else
+            {
+                break;
+            }
+        }
+        *iter_ptr++ = num_elts;
     }
 }
