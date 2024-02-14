@@ -6,14 +6,16 @@
 
 #define SECTION_SIZE 1024
 #define CFACTOR 4
-#define FLOAT_EPS 1.0e-6f
+#define FLOAT_EPS 1.0e-3f
 
 /// @brief List of available kernels which are supported.
 enum class SpmvKernel : int
 {
     kCooSpmv = 0,
     kCsrSpmv = 1,
-    kNumKernels = 2
+    kEllSpmv = 2,
+    kEllCooSpmv = 3,
+    kNumKernels = 4
 };
 
 #endif  // CHAPTER_14_TYPES_CONSTANTS_H

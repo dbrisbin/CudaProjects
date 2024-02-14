@@ -35,8 +35,8 @@ __global__ void CsrSpmvKernel(const float* __restrict__ values, const int* __res
 }
 
 __global__ void EllSpmvKernel(const float* __restrict__ values, const int* __restrict__ col_indices,
-                              const float* __restrict__ vec, float* result, const int num_rows,
-                              const int* nnz_per_row)
+                              const int* __restrict__ nnz_per_row, const float* __restrict__ vec,
+                              float* result, const int num_rows)
 {
     const unsigned int row = blockIdx.x * blockDim.x + threadIdx.x;
     if (row < num_rows)
@@ -48,5 +48,16 @@ __global__ void EllSpmvKernel(const float* __restrict__ values, const int* __res
             sum += values[i] * vec[col_indices[i]];
         }
         result[row] = sum;
+    }
+}
+
+__host__ void CooSpmvCPU(const float* values, const int* col_indices, const int* row_indices,
+                         const float* vec, float* result, const int nnz)
+{
+    for (int i = 0; i < nnz; ++i)
+    {
+        const int row = row_indices[i];
+        const int col = col_indices[i];
+        result[row] += values[i] * vec[col];
     }
 }

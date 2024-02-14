@@ -3,6 +3,7 @@
 
 #include <cuda_runtime.h>
 #include <algorithm>
+#include <numeric>
 #include "spmv_utils.h"
 #include "types/constants.h"
 
@@ -55,6 +56,12 @@ __host__ __device__ void DecompressCSR(const float* values, const int* col_indic
                                        const int* row_pointers, const int rows, const int cols,
                                        float* matrix)
 {
+    // Fill matrix with zeros
+    for (int i = 0; i < rows * cols; ++i)
+    {
+        matrix[i] = 0;
+    }
+
     for (int i = 0; i < rows; ++i)
     {
         for (int j = row_pointers[i]; j < row_pointers[i + 1]; ++j)
@@ -64,15 +71,30 @@ __host__ __device__ void DecompressCSR(const float* values, const int* col_indic
     }
 }
 
+__host__ int MaxNnzPerRow(const float* matrix, const int rows, const int cols)
+{
+    int max_nnz_per_row{0};
+    for (int i = 0; i < rows; ++i)
+    {
+        int nnz{0};
+        for (int j = 0; j < cols; ++j)
+        {
+            if (std::fabs(matrix[i * cols + j]) > FLOAT_EPS)
+            {
+                ++nnz;
+            }
+        }
+        max_nnz_per_row = max_nnz_per_row > nnz ? max_nnz_per_row : nnz;
+    }
+    return max_nnz_per_row;
+}
+
 __host__ __device__ void UncompressedToELL(const float* matrix, const int rows, const int cols,
                                            float* values, int* col_indices, int* nnz_per_row,
-                                           const int num_nnz)
+                                           const int max_nnz_per_row)
 {
-    int* values_ = new int[num_nnz];
-    int* col_indices_ = new int[num_nnz];
-    int* row_ptr = new int[rows];
-    int accumulated_num_nnz{0};
-    int max_nnz_per_row{0};
+    float* values_ = new float[max_nnz_per_row * rows];
+    int* col_indices_ = new int[max_nnz_per_row * rows];
 
     for (int i = 0; i < rows; ++i)
     {
@@ -81,14 +103,12 @@ __host__ __device__ void UncompressedToELL(const float* matrix, const int rows, 
         {
             if (std::fabs(matrix[i * cols + j]) > FLOAT_EPS)
             {
-                values_[accumulated_num_nnz] = matrix[i * cols + j];
-                col_indices_[accumulated_num_nnz++] = j;
+                values_[i * max_nnz_per_row + nnz] = matrix[i * cols + j];
+                col_indices_[i * max_nnz_per_row + nnz] = j;
                 ++nnz;
             }
         }
         nnz_per_row[i] = nnz;
-        row_ptr[i] = accumulated_num_nnz;
-        max_nnz_per_row = max_nnz_per_row > nnz ? max_nnz_per_row : nnz;
     }
 
     for (int j = 0; j < max_nnz_per_row; ++j)
@@ -107,8 +127,93 @@ __host__ __device__ void UncompressedToELL(const float* matrix, const int rows, 
             }
         }
     }
+
+    delete[] col_indices_;
+    delete[] values_;
 }
 
+__host__ void UncompressedToELLCOO(const float* matrix, const int rows, const int cols,
+                                   float* ell_values, int* ell_col_indices, int* ell_nnz_per_row,
+                                   float* coo_values, int* coo_row_indices, int* coo_col_indices,
+                                   int* max_nnz_per_row_ell, int* num_nnz_coo)
+{
+    *num_nnz_coo = 0;
+    int* nnz_per_row = new int[rows];
+    for (int i = 0; i < rows; ++i)
+    {
+        int nnz{0};
+        for (int j = 0; j < cols; ++j)
+        {
+            if (std::fabs(matrix[i * cols + j]) > FLOAT_EPS)
+            {
+                ++nnz;
+            }
+        }
+        nnz_per_row[i] = nnz;
+    }
+
+    // compute the mean nnz per row
+    float mean_nnz_per_row{std::accumulate(nnz_per_row, nnz_per_row + rows, 0) /
+                           static_cast<float>(rows)};
+
+    // Compute the stdev of nnz data
+    float stdev_nnz_per_row{std::accumulate(
+        nnz_per_row, nnz_per_row + rows, 0.0f, [mean_nnz_per_row](float acc, int nnz) -> float {
+            return acc + (nnz - mean_nnz_per_row) * (nnz - mean_nnz_per_row);
+        })};
+    stdev_nnz_per_row = sqrt(stdev_nnz_per_row / static_cast<float>(rows));
+
+    // Place up to mean + stdev elements from each row in ELL format. Store the rest in COO.
+    int max_nnz_per_row{static_cast<int>(mean_nnz_per_row + stdev_nnz_per_row)};
+    float* values_ = new float[max_nnz_per_row * rows];
+    int* col_indices_ = new int[max_nnz_per_row * rows];
+
+    for (int i = 0; i < rows; ++i)
+    {
+        int nnz{0};
+        for (int j = 0; j < cols; ++j)
+        {
+            if (std::fabs(matrix[i * cols + j]) > FLOAT_EPS)
+            {
+                if (nnz < max_nnz_per_row)
+                {
+                    values_[i * max_nnz_per_row + nnz] = matrix[i * cols + j];
+                    col_indices_[i * max_nnz_per_row + nnz] = j;
+                }
+                else
+                {
+                    *coo_values++ = matrix[i * cols + j];
+                    *coo_row_indices++ = i;
+                    *coo_col_indices++ = j;
+                    ++(*num_nnz_coo);
+                }
+                ++nnz;
+            }
+        }
+        ell_nnz_per_row[i] = std::min(nnz, max_nnz_per_row);
+    }
+
+    for (int j = 0; j < max_nnz_per_row; ++j)
+    {
+        for (int i = 0; i < rows; ++i)
+        {
+            if (j < nnz_per_row[i])
+            {
+                *ell_values++ = values_[i * max_nnz_per_row + j];
+                *ell_col_indices++ = col_indices_[i * max_nnz_per_row + j];
+            }
+            else
+            {
+                *ell_values++ = 0;
+                *ell_col_indices++ = 0;
+            }
+        }
+    }
+
+    delete[] col_indices_;
+    delete[] values_;
+    *max_nnz_per_row_ell = max_nnz_per_row;
+}
 __host__ void DecompressELL(const float* values, const int* col_indices, const int* nnz_per_row,
                             const int rows, const int cols, float* matrix)
 {
@@ -129,5 +234,85 @@ __global__ void ResetArray(unsigned int* data, unsigned int length, unsigned int
     for (unsigned int i = idx; i < min(CFACTOR * blockDim.x, length); i += blockDim.x)
     {
         data[i] = val;
+    }
+}
+__device__ void basicParallelHistogram(const int* data, const int length, int* hist)
+{
+    unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i < length)
+    {
+        atomicAdd(&hist[data[i]], 1);
+    }
+}
+
+__device__ void KoggeStoneExclusiveScan(const int* data, int* result, int length)
+{
+    __shared__ int XY[SECTION_SIZE];
+    unsigned int tx = threadIdx.x;
+    unsigned int i = blockIdx.x * blockDim.x + tx;
+    if (i < length && tx != 0)
+    {
+        XY[tx] = data[i - 1];
+    }
+    else
+    {
+        XY[tx] = 0;
+    }
+    unsigned int temp;
+    for (unsigned int stride = 1; stride < SECTION_SIZE; stride *= 2)
+    {
+        __syncthreads();
+        if (tx >= stride)
+        {
+            temp = XY[tx] + XY[tx - stride];
+        }
+        __syncthreads();
+        if (tx >= stride)
+        {
+            XY[tx] = temp;
+        }
+    }
+    if (i < length)
+    {
+        result[i] = XY[tx];
+    }
+}
+
+__global__ void ConvertCOOToCSR(const float* values, const int* row_indices, const int* col_indices,
+                                const int num_nnz, float* csr_values, int* csr_col_indices,
+                                int* csr_row_pointers, const int rows)
+{
+    // Part 1: Apply histogram to count the number of non-zero elements in each row
+    __shared__ int hist[SECTION_SIZE];
+    unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i < SECTION_SIZE)
+    {
+        hist[i] = 0;
+    }
+    __syncthreads();
+    basicParallelHistogram(row_indices, num_nnz, hist);
+    __syncthreads();
+
+    // Part 2: Apply scan to calculate the row pointers
+    KoggeStoneExclusiveScan(hist, csr_row_pointers, rows);
+    if (i == 0)
+    {
+        csr_row_pointers[rows] = num_nnz;
+    }
+    __syncthreads();
+
+    // Part 3: Move the nonzero elements to the correct position in CSR format.
+    // Reuse hist to track the next position to write the non-zero elements.
+    if (i < SECTION_SIZE)
+    {
+        hist[i] = 0;
+    }
+    __syncthreads();
+    for (unsigned int j = i; j < num_nnz; j += blockDim.x)
+    {
+        int row = row_indices[j];
+        int dest = csr_row_pointers[row] + atomicAdd(&hist[row], 1);
+        csr_values[dest] = values[j];
+        csr_col_indices[dest] = col_indices[j];
     }
 }

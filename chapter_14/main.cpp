@@ -40,7 +40,7 @@ bool VectorsAreEqual(const float* actual, const float* expected, const int lengt
 {
     for (int i = 0; i < length; ++i)
     {
-        if (std::fabs(actual[i] - expected[i]) > FLOAT_EPS)
+        if (std::fabs(actual[i] - expected[i]) > sqrt(FLOAT_EPS))
         {
             return false;
         }

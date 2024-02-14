@@ -59,6 +59,9 @@ $(RELDIR)/%.o: %.cpp
 generate_sparse_matrix_data:
 	$(NVCC) -o $(GENERATOR_EXE) $(GENERATOR_SRC)
 
+convert_coo_to_csr: debug/spmv_utils.o debug/convert_coo_to_csr_driver.o
+		$(NVCC) --compiler-options $(CFLAGS) $(DBGFLAGS) -o convert_coo_to_csr $^
+
 documentation:
 	doxygen $(DOC_CONFIG)
 
