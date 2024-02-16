@@ -30,3 +30,4 @@
 2) Implement the host code for the direction-optimized BFS implementation described in Section 15.3.  
 See `VertexCentricPushPullDriver()` in `bfs_driver.cu`. Note the heuristic used to switch kernels is pretty bad as it requires using atomicAdds in the kernels which loses the idempotency of the original kernels. At least one optimization is to use privatization which does significantly improve runtime such that 100 iterations is still faster than a single iteration on CPU.  
 3) Implement the single-block BFS kernel described in Section 15.7.  
+See `SingleBlockVertexCentricPushBFSWithFrontiersPrivatized.cu` in `bfs.cu`.

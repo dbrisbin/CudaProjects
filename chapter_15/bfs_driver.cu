@@ -331,7 +331,8 @@ float VertexCentricPushPullDriver(AdjacencyMatrix& adj_matrix, int* result_h, co
     return time;
 }
 
-float VertexCentricPushWithFrontiersDriver(AdjacencyMatrix& adj_matrix, int* result_h)
+float VertexCentricPushWithFrontiersDriver(AdjacencyMatrix& adj_matrix, int* result_h,
+                                           const int iters, bool use_privatized_kernel)
 {
     GraphCsr graph_csr_h{adj_matrix.ToCsr()};
     GraphCsr graph_csr_h_to_copy_to_d{};
@@ -363,35 +364,152 @@ float VertexCentricPushWithFrontiersDriver(AdjacencyMatrix& adj_matrix, int* res
 
     float time{};
     cudaEvent_t start, stop;
+    int n_prev_frontier{};
+    int* n_curr_frontier{};
 
     cudaEventCreate(&start);
     cudaEventCreate(&stop);
     cudaEventRecord(start, 0);
-
-    int n_prev_frontier{1};
-    int* n_curr_frontier{};
-    cudaMalloc((void**)&n_curr_frontier, sizeof(int));
-    cudaMemset(n_curr_frontier, 0, sizeof(int));
-    cudaMemset(prev_frontier_d, 0, sizeof(int));
-    cudaMemset(result_d, -1, adj_matrix.GetN() * sizeof(int));
-    cudaMemset(result_d, 0, sizeof(int));
-    dim3 block_dim{SECTION_SIZE, 1, 1};
-    dim3 grid_dim{static_cast<unsigned int>(ceil(static_cast<float>(graph_csr_h.n) / SECTION_SIZE)),
-                  1, 1};
-    int curr_level{1};
-    do
+    for (int i = 0; i < iters; ++i)
     {
-        VertexCentricPushBFSWithFrontiers<<<grid_dim, block_dim>>>(
-            graph_csr_d, result_d, prev_frontier_d, curr_frontier_d, n_prev_frontier,
-            n_curr_frontier, curr_level);
-        cudaMemcpy(&n_prev_frontier, n_curr_frontier, sizeof(int), cudaMemcpyDeviceToHost);
-        cudaMemcpy(prev_frontier_d, curr_frontier_d, n_prev_frontier * sizeof(int),
-                   cudaMemcpyDeviceToDevice);
+        n_prev_frontier = 1;
+        cudaMalloc((void**)&n_curr_frontier, sizeof(int));
         cudaMemset(n_curr_frontier, 0, sizeof(int));
+        cudaMemset(prev_frontier_d, 0, sizeof(int));
+        cudaMemset(result_d, -1, adj_matrix.GetN() * sizeof(int));
+        cudaMemset(result_d, 0, sizeof(int));
+        dim3 block_dim{SECTION_SIZE, 1, 1};
+        dim3 grid_dim{
+            static_cast<unsigned int>(ceil(static_cast<float>(graph_csr_h.n) / SECTION_SIZE)), 1,
+            1};
+        int curr_level{1};
+        do
+        {
+            if (use_privatized_kernel)
+            {
+                VertexCentricPushBFSWithFrontiersPrivatized<<<grid_dim, block_dim>>>(
+                    graph_csr_d, result_d, prev_frontier_d, curr_frontier_d, n_prev_frontier,
+                    n_curr_frontier, curr_level);
+            }
+            else
+            {
+                VertexCentricPushBFSWithFrontiers<<<grid_dim, block_dim>>>(
+                    graph_csr_d, result_d, prev_frontier_d, curr_frontier_d, n_prev_frontier,
+                    n_curr_frontier, curr_level);
+            }
 
-        ++curr_level;
-    } while (n_prev_frontier != 0);
+            std::swap(prev_frontier_d, curr_frontier_d);
+            cudaMemcpy(&n_prev_frontier, n_curr_frontier, sizeof(int), cudaMemcpyDeviceToHost);
+            cudaMemset(n_curr_frontier, 0, sizeof(int));
 
+            ++curr_level;
+        } while (n_prev_frontier != 0);
+    }
+    cudaMemcpy(result_h, result_d, adj_matrix.GetN() * sizeof(int), cudaMemcpyDeviceToHost);
+    cudaEventRecord(stop, 0);
+    cudaEventSynchronize(stop);
+    cudaEventElapsedTime(&time, start, stop);
+
+    cudaEventDestroy(start);
+    cudaEventDestroy(stop);
+    cudaFree(graph_csr_d);
+    cudaFree(graph_csr_h_to_copy_to_d.row_ptrs);
+    cudaFree(graph_csr_h_to_copy_to_d.col_idx);
+    cudaFree(graph_csr_h_to_copy_to_d.val);
+    cudaFree(result_d);
+    cudaFree(prev_frontier_d);
+    cudaFree(curr_frontier_d);
+    cudaFree(n_curr_frontier);
+
+    delete[] graph_csr_h.row_ptrs;
+    delete[] graph_csr_h.col_idx;
+    delete[] graph_csr_h.val;
+
+    return time;
+}
+
+float SingleBlockVertexCentricPushDriver(AdjacencyMatrix& adj_matrix, int* result_h,
+                                         const int iters)
+{
+    GraphCsr graph_csr_h{adj_matrix.ToCsr()};
+    GraphCsr graph_csr_h_to_copy_to_d{};
+    graph_csr_h_to_copy_to_d.n = graph_csr_h.n;
+    const int num_edges{graph_csr_h.row_ptrs[graph_csr_h.n]};
+    cudaMalloc((void**)&graph_csr_h_to_copy_to_d.row_ptrs, (graph_csr_h.n + 1) * sizeof(int));
+    cudaMalloc((void**)&graph_csr_h_to_copy_to_d.col_idx, num_edges * sizeof(int));
+    cudaMalloc((void**)&graph_csr_h_to_copy_to_d.val, num_edges * sizeof(int));
+    cudaMemcpy(graph_csr_h_to_copy_to_d.row_ptrs, graph_csr_h.row_ptrs,
+               (graph_csr_h.n + 1) * sizeof(int), cudaMemcpyHostToDevice);
+    cudaMemcpy(graph_csr_h_to_copy_to_d.col_idx, graph_csr_h.col_idx, num_edges * sizeof(int),
+               cudaMemcpyHostToDevice);
+    cudaMemcpy(graph_csr_h_to_copy_to_d.val, graph_csr_h.val, num_edges * sizeof(int),
+               cudaMemcpyHostToDevice);
+
+    GraphCsr* graph_csr_d{};
+    cudaMalloc((void**)&graph_csr_d, sizeof(GraphCsr));
+    cudaMemcpy(graph_csr_d, &graph_csr_h_to_copy_to_d, sizeof(GraphCsr), cudaMemcpyHostToDevice);
+
+    int* prev_frontier_d{};
+    int* curr_frontier_d{};
+
+    cudaMalloc((void**)&prev_frontier_d, adj_matrix.GetN() * sizeof(int));
+    cudaMalloc((void**)&curr_frontier_d, adj_matrix.GetN() * sizeof(int));
+
+    int* result_d{};
+
+    cudaMalloc((void**)&result_d, adj_matrix.GetN() * sizeof(int));
+
+    float time{};
+    cudaEvent_t start, stop;
+    int n_prev_frontier{};
+    int* n_curr_frontier{};
+    int* curr_level{};
+    int curr_level_h{1};
+
+    cudaEventCreate(&start);
+    cudaEventCreate(&stop);
+    cudaEventRecord(start, 0);
+    cudaMalloc((void**)&n_curr_frontier, sizeof(int));
+    cudaMalloc((void**)&curr_level, sizeof(int));
+    for (int i = 0; i < iters; ++i)
+    {
+        curr_level_h = 1;
+        n_prev_frontier = 1;
+        cudaMemset(n_curr_frontier, 0, sizeof(int));
+        cudaMemcpy(curr_level, &curr_level_h, sizeof(int), cudaMemcpyHostToDevice);
+        cudaMemset(prev_frontier_d, 0, sizeof(int));
+        cudaMemset(n_curr_frontier, 0, sizeof(int));
+        cudaMemset(result_d, -1, adj_matrix.GetN() * sizeof(int));
+        cudaMemset(result_d, 0, sizeof(int));
+        dim3 block_dim{SECTION_SIZE, 1, 1};
+        dim3 grid_dim{
+            static_cast<unsigned int>(ceil(static_cast<float>(graph_csr_h.n) / SECTION_SIZE)), 1,
+            1};
+        do
+        {
+            cudaMemcpy(&curr_level_h, curr_level, sizeof(int), cudaMemcpyDeviceToHost);
+            if (n_prev_frontier < SECTION_SIZE)
+            {
+                SingleBlockVertexCentricPushBFSWithFrontiersPrivatized<<<1, SECTION_SIZE>>>(
+                    graph_csr_d, result_d, prev_frontier_d, curr_frontier_d, n_prev_frontier,
+                    n_curr_frontier, curr_level);
+                cudaMemcpy(&curr_level_h, curr_level, sizeof(int), cudaMemcpyDeviceToHost);
+            }
+            else
+            {
+                VertexCentricPushBFSWithFrontiersPrivatized<<<grid_dim, block_dim>>>(
+                    graph_csr_d, result_d, prev_frontier_d, curr_frontier_d, n_prev_frontier,
+                    n_curr_frontier, curr_level_h);
+            }
+
+            std::swap(prev_frontier_d, curr_frontier_d);
+            cudaMemcpy(&n_prev_frontier, n_curr_frontier, sizeof(int), cudaMemcpyDeviceToHost);
+            cudaMemset(n_curr_frontier, 0, sizeof(int));
+
+            ++curr_level_h;
+            cudaMemcpy(curr_level, &curr_level_h, sizeof(int), cudaMemcpyHostToDevice);
+        } while (n_prev_frontier != 0);
+    }
     cudaMemcpy(result_h, result_d, adj_matrix.GetN() * sizeof(int), cudaMemcpyDeviceToHost);
     cudaEventRecord(stop, 0);
     cudaEventSynchronize(stop);

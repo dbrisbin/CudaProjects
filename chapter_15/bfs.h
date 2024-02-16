@@ -34,7 +34,7 @@ __global__ void VertexCentricPullBFS(const GraphCsc* graph, int* level, int* new
                                      const int curr_level);
 
 /// @brief Vertex-centric push BFS kernel with frontiers.
-/// @param graph The graph to traverse stored in CSC format.
+/// @param graph The graph to traverse stored in CSR format.
 /// @param[in,out] level The level of each vertex.
 /// @param prev_frontier The previous frontier.
 /// @param[out] curr_frontier The current frontier.
@@ -45,5 +45,29 @@ __global__ void VertexCentricPushBFSWithFrontiers(const GraphCsr* graph, int* le
                                                   const int* prev_frontier, int* curr_frontier,
                                                   const int n_prev_frontier, int* n_curr_frontier,
                                                   const int curr_level);
+
+/// @brief Vertex-centric push BFS kernel with frontiers.
+/// @param graph The graph to traverse stored in CSR format.
+/// @param[in,out] level The level of each vertex.
+/// @param prev_frontier The previous frontier.
+/// @param[out] curr_frontier The current frontier.
+/// @param n_prev_frontier The number of vertices in the previous frontier.
+/// @param[out] n_curr_frontier The number of vertices in the current frontier.
+/// @param curr_level The current level.
+__global__ void VertexCentricPushBFSWithFrontiersPrivatized(
+    const GraphCsr* graph, int* level, const int* prev_frontier, int* curr_frontier,
+    const int n_prev_frontier, int* n_curr_frontier, const int curr_level);
+
+/// @brief Single-block vertex-centric push BFS kernel with frontiers.
+/// @param graph The graph to traverse stored in CSR format.
+/// @param[in,out] level The level of each vertex.
+/// @param prev_frontier The previous frontier.
+/// @param[out] curr_frontier The current frontier.
+/// @param n_prev_frontier The number of vertices in the previous frontier.
+/// @param[out] n_curr_frontier The number of vertices in the current frontier.
+/// @param curr_level The current level.
+__global__ void SingleBlockVertexCentricPushBFSWithFrontiersPrivatized(
+    const GraphCsr* graph, int* level, const int* prev_frontier, int* curr_frontier,
+    const int n_prev_frontier, int* n_curr_frontier, int* curr_level);
 
 #endif  // CHAPTER_15_BFS_H

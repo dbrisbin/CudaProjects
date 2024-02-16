@@ -42,7 +42,18 @@ float VertexCentricPushPullDriver(AdjacencyMatrix& adj_matrix, int* result_h, co
 /// @param adj_matrix graph to perform BFS on
 /// @param[out] result_h result_h of the BFS
 /// @param iters number of iterations to run the kernel
+/// @param use_privatized_kernel whether to use the privatized kernel
+/// @return time taken to run the kernel once
+float VertexCentricPushWithFrontiersDriver(AdjacencyMatrix& adj_matrix, int* result_h,
+                                           const int iters, bool use_privatized_kernel = false);
+
+/// @brief Driver function to setup and call the single-block vertex-centric push kernel to run BFS
+/// on the GPU.
+/// @param adj_matrix graph to perform BFS on
+/// @param[out] result_h result_h of the BFS
+/// @param iters number of iterations to run the kernel
 /// @return time taken to run the kernel iters times
-float VertexCentricPushWithFrontiersDriver(AdjacencyMatrix& adj_matrix, int* result_h);
+float SingleBlockVertexCentricPushDriver(AdjacencyMatrix& adj_matrix, int* result_h,
+                                         const int iters);
 
 #endif  // CHAPTER_15_BFS_DRIVER_H

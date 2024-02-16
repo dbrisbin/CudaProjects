@@ -6,6 +6,7 @@
 
 #define SECTION_SIZE 1024
 #define CFACTOR 4
+#define LOCAL_FRONTIER_CAPACITY 4096
 
 constexpr float kEpsilon = 1.0e-3f;
 
@@ -17,7 +18,9 @@ enum class BfsKernel : int
     kVertexCentricPull = 2,
     kVertexCentricPushPull = 3,
     kVertexCentricPushWithFrontier = 4,
-    kNumKernels = 5
+    kVertexCentricPushWithFrontierPrivatized = 5,
+    kSingleBlockVertexCentricPushFrontierPrivatized = 6,
+    kNumKernels = 7
 };
 
 #endif  // CHAPTER_15_TYPES_CONSTANTS_H

@@ -141,7 +141,14 @@ int main(int argc, char* argv[])
             time_to_compute = VertexCentricPushPullDriver(adj_matrix, result, iters);
             break;
         case BfsKernel::kVertexCentricPushWithFrontier:
-            time_to_compute = VertexCentricPushWithFrontiersDriver(adj_matrix, result);
+            time_to_compute =
+                VertexCentricPushWithFrontiersDriver(adj_matrix, result, iters, false);
+            break;
+        case BfsKernel::kVertexCentricPushWithFrontierPrivatized:
+            time_to_compute = VertexCentricPushWithFrontiersDriver(adj_matrix, result, iters, true);
+            break;
+        case BfsKernel::kSingleBlockVertexCentricPushFrontierPrivatized:
+            time_to_compute = SingleBlockVertexCentricPushDriver(adj_matrix, result, iters);
             break;
         case BfsKernel::kNumKernels:
         default:
