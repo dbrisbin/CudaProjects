@@ -10,14 +10,15 @@ class AdjacencyMatrix
    public:
     AdjacencyMatrix(const int* graph, const int n);
     ~AdjacencyMatrix();
-
-    int GetNumNnz() const;
+    int GetN() const { return n_; }
 
     GraphCoo ToCoo() const;
     GraphCsr ToCsr() const;
     GraphCsc ToCsc() const;
 
    private:
+    int GetNumNnz() const;
+
     int* graph_;
     const int n_;
 };

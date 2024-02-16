@@ -13,7 +13,11 @@ constexpr float kEpsilon = 1.0e-3f;
 enum class BfsKernel : int
 {
     kEdgeCentric = 0,
-    kNumKernels = 1
+    kVertexCentricPush = 1,
+    kVertexCentricPull = 2,
+    kVertexCentricPushPull = 3,
+    kVertexCentricPushWithFrontier = 4,
+    kNumKernels = 5
 };
 
 #endif  // CHAPTER_15_TYPES_CONSTANTS_H

@@ -1,5 +1,5 @@
 /// @file bfs_driver.h
-/// @brief Declaration of driver function to setup and call the appropriate kernel to compute the
+/// @brief Declaration of driver functions to setup and call the appropriate kernel to compute the
 /// sparse matrix vector product on GPU.
 
 #ifndef CHAPTER_15_BFS_DRIVER_H
@@ -8,14 +8,41 @@
 #include "types/adjacency_matrix.h"
 #include "types/constants.h"
 
-/// @brief Driver function to setup and call the appropriate kernel to run BFS on the GPU.
-/// @param graph graph to perform BFS on
-/// @param result result of the BFS
-/// @param n number of nodes in the graph
+/// @brief Driver function to setup and call the Edge-centric kernel to run BFS on the GPU.
+/// @param adj_matrix graph to perform BFS on
+/// @param[out] result_h result_h of the BFS
 /// @param iters number of iterations to run the kernel
-/// @param kernel_to_use kernel to use for BFS
 /// @return time taken to run the kernel iters times
-float BfsDriver(AdjacencyMatrix& adj_matrix, int* result, const int iters,
-                const BfsKernel kernel_to_use);
+float EdgeCentricDriver(AdjacencyMatrix& adj_matrix, int* result_h, const int iters);
+
+/// @brief Driver function to setup and call the vertex-centric push kernel to run BFS on the GPU.
+/// @param adj_matrix graph to perform BFS on
+/// @param[out] result_h result_h of the BFS
+/// @param iters number of iterations to run the kernel
+/// @return time taken to run the kernel iters times
+float VertexCentricPushDriver(AdjacencyMatrix& adj_matrix, int* result_h, const int iters);
+
+/// @brief Driver function to setup and call the vertex-centric pull kernel to run BFS on the GPU.
+/// @param adj_matrix graph to perform BFS on
+/// @param[out] result_h result_h of the BFS
+/// @param iters number of iterations to run the kernel
+/// @return time taken to run the kernel iters times
+float VertexCentricPullDriver(AdjacencyMatrix& adj_matrix, int* result_h, const int iters);
+
+/// @brief Driver function to setup and call the vertex-centric push-pull kernel to run BFS on the
+/// GPU.
+/// @param adj_matrix graph to perform BFS on
+/// @param[out] result_h result_h of the BFS
+/// @param iters number of iterations to run the kernel
+/// @return time taken to run the kernel iters times
+float VertexCentricPushPullDriver(AdjacencyMatrix& adj_matrix, int* result_h, const int iters);
+
+/// @brief Driver function to setup and call the vertex-centric push with frontiers kernel to run
+/// BFS on the GPU.
+/// @param adj_matrix graph to perform BFS on
+/// @param[out] result_h result_h of the BFS
+/// @param iters number of iterations to run the kernel
+/// @return time taken to run the kernel iters times
+float VertexCentricPushWithFrontiersDriver(AdjacencyMatrix& adj_matrix, int* result_h);
 
 #endif  // CHAPTER_15_BFS_DRIVER_H

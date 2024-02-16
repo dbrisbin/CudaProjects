@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <utility>
 #include <vector>
@@ -19,9 +20,28 @@
 /// @param n number of nodes in the graph
 void BfsCPU(const int* graph, int* result, const int n)
 {
-    (void)graph;
-    (void)result;
-    (void)n;
+    std::fill(result, result + n, -1);
+    std::vector<int> queue;
+    queue.push_back(0);
+    result[0] = 0;
+    int curr_level{1};
+    while (!queue.empty())
+    {
+        std::vector<int> frontier(std::begin(queue), std::end(queue));
+        queue.clear();
+        for (auto src : frontier)
+        {
+            for (int i = 0; i < n; ++i)
+            {
+                if (graph[src * n + i] && result[i] == -1)
+                {
+                    queue.push_back(i);
+                    result[i] = curr_level;
+                }
+            }
+        }
+        ++curr_level;
+    }
 }
 
 /// @brief Compares two vectors for equality.
@@ -85,8 +105,8 @@ int main(int argc, char* argv[])
     int *graph{}, *result{}, *expected{};
 
     graph = new int[n * n];
-    result = new int[n];
     expected = new int[n];
+    result = new int[n];
 
     for (int i = 0; i < n; ++i)
     {
@@ -103,30 +123,58 @@ int main(int argc, char* argv[])
         return 1;
     }
     AdjacencyMatrix adj_matrix(graph, n);
-    int iters{1};
+    int iters{100};
 
-    const auto time_to_compute = BfsDriver(adj_matrix, result, iters, kernel_to_use);
-    printf("Took %.2f msec to compute %d iterations.", time_to_compute, iters);
+    float time_to_compute{};
+    switch (kernel_to_use)
+    {
+        case BfsKernel::kEdgeCentric:
+            time_to_compute = EdgeCentricDriver(adj_matrix, result, iters);
+            break;
+        case BfsKernel::kVertexCentricPush:
+            time_to_compute = VertexCentricPushDriver(adj_matrix, result, iters);
+            break;
+        case BfsKernel::kVertexCentricPull:
+            time_to_compute = VertexCentricPullDriver(adj_matrix, result, iters);
+            break;
+        case BfsKernel::kVertexCentricPushPull:
+            time_to_compute = VertexCentricPushPullDriver(adj_matrix, result, iters);
+            break;
+        case BfsKernel::kVertexCentricPushWithFrontier:
+            time_to_compute = VertexCentricPushWithFrontiersDriver(adj_matrix, result);
+            break;
+        case BfsKernel::kNumKernels:
+        default:
+            printf("Invalid kernel selected. Exiting.\n");
+            break;
+    }
 
+    printf("Took %.2f msec to compute %d iterations on GPU.\n", time_to_compute, iters);
+
+    auto start = std::chrono::high_resolution_clock::now();
     BfsCPU(graph, expected, n);
+    auto end = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double, std::milli> duration = end - start;
+    printf("Took %.2f msec to compute 1 iteration on CPU.\n", duration.count());
+
     if (!VectorsAreEqual(result, expected, n))
     {
-        printf("\nResults are not equal!\n");
+        printf("\nResults are not equal (result may be truncated)!\n");
         printf("Expected:\n");
-        PrintVector(expected, n);
+        PrintVector(expected, std::min(n, 100));
 
         printf("\nActual:\n");
-        PrintVector(result, n);
+        PrintVector(result, std::min(n, 100));
     }
     else
     {
-        printf("\nResult is correct!\n");
-        PrintVector(result, n);
+        printf("\nResult is correct (result may be truncated)!\n");
+        PrintVector(result, std::min(n, 100));
     }
 
-    delete[] graph;
-    delete[] result;
     delete[] expected;
+    delete[] result;
+    delete[] graph;
 
     return 0;
 }
