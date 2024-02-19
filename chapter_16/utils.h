@@ -41,7 +41,14 @@ inline int LinearizeIndex(const int n, const int c, const int h, const int w, co
     return n * C * H * W + c * H * W + h * W + w;
 }
 
-inline float Sigmoid(const float x) { return 1.0f / (1.0f + std::exp(-x)); }
+/// @brief Compute tanh activation function.
+/// @param x input
+/// @return tanh(x)
+inline float Tanh(const float x) { return std::tanh(x); }
 
-inline float dSigmoid(const float x) { return Sigmoid(x) * (1.0f - Sigmoid(x)); }
+/// @brief Compute the derivative of the tanh activation function.
+/// @param x input
+/// @return 1 - tanh(x)^2
+inline float dTanh(const float x) { return 1.0f - std::pow(Tanh(x), 2); }
+
 #endif  // CHAPTER_16_UTILS_H

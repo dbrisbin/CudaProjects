@@ -5,7 +5,7 @@ CFLAGS = -Wall,-Werror,-Wextra
 CUCOMPILEFLAGS = --device-c
 
 CU_SRCS = 
-CPP_SRCS = main.cpp le_net_5.cpp layers_cpu.cpp
+CPP_SRCS = main.cpp le_net_5_modified.cpp layers_cpu.cpp cnn_cpu.cpp
 OBJS = $(CU_SRCS:.cu=.o) $(CPP_SRCS:.cpp=.o)
 EXECUTABLE=cnn
 
