@@ -11,37 +11,38 @@ void ConvLayer::Forward(const float* X, float* Y) const
     const auto H_out = H_in - K + 1;
     const auto W_out = W_in - K + 1;
 
-    for (int i{0}; i < M * H_out * W_out; ++i)
+    for (int i{0}; i < N * M * H_out * W_out; ++i)
     {
         Z[i] = 0.0f;
     }
-    for (int i{0}; i < C * H_in * W_in; ++i)
+    for (int i{0}; i < N * C * H_in * W_in; ++i)
     {
-        float temp = X[i];
-        X_in[i] = temp;
+        X_in[i] = X[i];
     }
 
-    for (int m{0}; m < M; ++m)
+    for (int n = 0; n < N; ++n)
     {
-        for (int h{0}; h < H_out; ++h)
+        for (int m{0}; m < M; ++m)
         {
-            for (int w{0}; w < W_out; ++w)
+            for (int h{0}; h < H_out; ++h)
             {
-                Y[LinearizeIndex(m, h, w, H_out, W_out)] = 0.0f;
-                for (int c{0}; c < C; ++c)
+                for (int w{0}; w < W_out; ++w)
                 {
-                    for (int i{0}; i < K; ++i)
+                    for (int c{0}; c < C; ++c)
                     {
-                        for (int j{0}; j < K; ++j)
+                        for (int i{0}; i < K; ++i)
                         {
-                            Z[LinearizeIndex(m, h, w, H_out, W_out)] +=
-                                X[LinearizeIndex(c, h + i, w + j, H_in, W_in)] *
-                                W[LinearizeIndex(m, c, i, j, C, K, K)];
+                            for (int j{0}; j < K; ++j)
+                            {
+                                auto x_val = X[LinearizeIndex(n, c, h + i, w + j, C, H_in, W_in)];
+                                auto w_val = W[LinearizeIndex(m, c, i, j, C, K, K)];
+                                Z[LinearizeIndex(n, m, h, w, M, H_out, W_out)] += x_val * w_val;
+                            }
                         }
                     }
+                    Y[LinearizeIndex(n, m, h, w, M, H_out, W_out)] =
+                        Tanh(Z[LinearizeIndex(n, m, h, w, M, H_out, W_out)]);
                 }
-                Y[LinearizeIndex(m, h, w, H_out, W_out)] =
-                    Tanh(Z[LinearizeIndex(m, h, w, H_out, W_out)]);
             }
         }
     }
@@ -64,29 +65,33 @@ void ConvLayer::BackwardX(const float* dE_dY, float* dE_dX)
     const auto H_out = H_in - K + 1;
     const auto W_out = W_in - K + 1;
 
-    for (int i{0}; i < C * H_in * W_in; ++i)
+    for (int i{0}; i < N * C * H_in * W_in; ++i)
     {
         dE_dX[i] = 0.0f;
     }
 
-    for (int m{0}; m < M; ++m)
+    for (int n{0}; n < N; ++n)
     {
-        for (int h{0}; h < H_out; ++h)
+        for (int m{0}; m < M; ++m)
         {
-            for (int w{0}; w < W_out; ++w)
+            for (int h{0}; h < H_out; ++h)
             {
-                for (int c{0}; c < C; ++c)
+                for (int w{0}; w < W_out; ++w)
                 {
-                    for (int i{0}; i < K; ++i)
+                    for (int c{0}; c < C; ++c)
                     {
-                        for (int j{0}; j < K; ++j)
+                        for (int i{0}; i < K; ++i)
                         {
-                            if (h - i > 0 && h - i < H_out && w - j > 0 && w - j < W_out)
+                            for (int j{0}; j < K; ++j)
                             {
-                                dE_dX[LinearizeIndex(c, h - i, w - j, H_in, W_in)] +=
-                                    dE_dY[LinearizeIndex(m, h, w, H_out, W_out)] *
-                                    W[LinearizeIndex(m, c, i, j, C, K, K)] *
-                                    dTanh(Z[LinearizeIndex(m, h - i, w - j, H_out, W_out)]);
+                                if (h - i > 0 && h - i < H_out && w - j > 0 && w - j < W_out)
+                                {
+                                    dE_dX[LinearizeIndex(n, c, h - i, w - j, C, H_in, W_in)] +=
+                                        dE_dY[LinearizeIndex(n, m, h, w, M, H_out, W_out)] *
+                                        W[LinearizeIndex(m, c, i, j, C, K, K)] *
+                                        dTanh(
+                                            Z[LinearizeIndex(n, m, h - i, w - j, M, H_out, W_out)]);
+                                }
                             }
                         }
                     }
@@ -108,21 +113,26 @@ void ConvLayer::BackwardW(const float* dE_dY, float* dE_dW)
 
     for (int m{0}; m < M; ++m)
     {
-        for (int h{0}; h < H_out; ++h)
+        for (int c{0}; c < C; ++c)
         {
-            for (int w{0}; w < W_out; ++w)
+            for (int i{0}; i < K; ++i)
             {
-                for (int c{0}; c < C; ++c)
+                for (int j{0}; j < K; ++j)
                 {
-                    for (int i{0}; i < K; ++i)
+                    for (int n{0}; n < N; ++n)
                     {
-                        for (int j{0}; j < K; ++j)
+                        for (int h{0}; h < H_out; ++h)
                         {
-                            dE_dW[LinearizeIndex(m, c, i, j, C, K, K)] +=
-                                dE_dY[LinearizeIndex(m, h, w, H_out, W_out)] *
-                                X_in[LinearizeIndex(c, h + i, w + j, H_in, W_in)];
+                            for (int w{0}; w < W_out; ++w)
+                            {
+                                dE_dW[LinearizeIndex(m, c, i, j, C, K, K)] +=
+                                    dE_dY[LinearizeIndex(n, m, h, w, M, H_out, W_out)] *
+                                    X_in[LinearizeIndex(n, c, h + i, w + j, C, H_in, W_in)] *
+                                    dTanh(Z[LinearizeIndex(n, m, h, w, M, H_out, W_out)]);
+                            }
                         }
                     }
+                    dE_dW[LinearizeIndex(m, c, i, j, C, K, K)] /= N;
                 }
             }
         }
@@ -134,24 +144,28 @@ void SubsamplingLayer::Forward(const float* X, float* S) const
     const auto H_out = H_in / K;
     const auto W_out = W_in / K;
 
-    for (int m{0}; m < M; ++m)
+    for (int n{0}; n < N; ++n)
     {
-        for (int h{0}; h < H_out; ++h)
+        for (int m{0}; m < M; ++m)
         {
-            for (int w{0}; w < W_out; ++w)
+            for (int h{0}; h < H_out; ++h)
             {
-                S[LinearizeIndex(m, h, w, H_out, W_out)] = 0.0f;
-                for (int i{0}; i < K; ++i)
+                for (int w{0}; w < W_out; ++w)
                 {
-                    for (int j{0}; j < K; ++j)
+                    S[LinearizeIndex(n, m, h, w, M, H_out, W_out)] = 0.0f;
+                    for (int i{0}; i < K; ++i)
                     {
-                        S[LinearizeIndex(m, h, w, H_out, W_out)] +=
-                            X[LinearizeIndex(m, h * K + i, w * K + j, H_in, W_in)];
+                        for (int j{0}; j < K; ++j)
+                        {
+                            auto x_val =
+                                X[LinearizeIndex(n, m, h * K + i, w * K + j, M, H_in, W_in)];
+                            S[LinearizeIndex(n, m, h, w, M, H_out, W_out)] += x_val;
+                        }
                     }
+                    S[LinearizeIndex(n, m, h, w, M, H_out, W_out)] /= K * K;
+                    S[LinearizeIndex(n, m, h, w, M, H_out, W_out)] =
+                        Tanh(S[LinearizeIndex(n, m, h, w, M, H_out, W_out)]);
                 }
-                S[LinearizeIndex(m, h, w, H_out, W_out)] /= K * K;
-                S[LinearizeIndex(m, h, w, H_out, W_out)] =
-                    Tanh(S[LinearizeIndex(m, h, w, H_out, W_out)]);
             }
         }
     }
@@ -167,18 +181,21 @@ void SubsamplingLayer::Backward(const float* dE_dS, float* dE_dX)
         dE_dX[i] = 0.0f;
     }
 
-    for (int m{0}; m < M; ++m)
+    for (int n{0}; n < N; ++n)
     {
-        for (int h{0}; h < H_out; ++h)
+        for (int m{0}; m < M; ++m)
         {
-            for (int w{0}; w < W_out; ++w)
+            for (int h{0}; h < H_out; ++h)
             {
-                for (int i{0}; i < K; ++i)
+                for (int w{0}; w < W_out; ++w)
                 {
-                    for (int j{0}; j < K; ++j)
+                    for (int i{0}; i < K; ++i)
                     {
-                        dE_dX[LinearizeIndex(m, h * K + i, w * K + j, H_in, W_in)] =
-                            dE_dS[LinearizeIndex(m, h, w, H_out, W_out)];
+                        for (int j{0}; j < K; ++j)
+                        {
+                            dE_dX[LinearizeIndex(n, m, h * K + i, w * K + j, M, H_in, W_in)] =
+                                dE_dS[LinearizeIndex(n, m, h, w, M, H_out, W_out)];
+                        }
                     }
                 }
             }
@@ -188,32 +205,33 @@ void SubsamplingLayer::Backward(const float* dE_dS, float* dE_dX)
 
 void FullyConnectedLayer::Forward(const float* X, float* Y) const
 {
-    for (int i{0}; i < M; ++i)
+    for (int i{0}; i < N * M; ++i)
     {
         Z[i] = 0.0f;
     }
-    for (int i{0}; i < C * H_in * W_in; ++i)
+    for (int i{0}; i < N * C * H_in * W_in; ++i)
     {
         X_in[i] = X[i];
     }
 
-    for (int m{0}; m < M; ++m)
+    for (int n{0}; n < N; ++n)
     {
-        Y[m] = 0.0f;
-        for (int c{0}; c < C; ++c)
+        for (int m{0}; m < M; ++m)
         {
-            for (int h{0}; h < H_in; ++h)
+            for (int c{0}; c < C; ++c)
             {
-                for (int w{0}; w < W_in; ++w)
+                for (int h{0}; h < H_in; ++h)
                 {
-                    Z[m] += X[LinearizeIndex(c, h, w, H_in, W_in)] *
-                            W[LinearizeIndex(m, c, h, w, C, H_in, W_in)];
-                    Y[m] += X[LinearizeIndex(c, h, w, H_in, W_in)] *
-                            W[LinearizeIndex(m, c, h, w, C, H_in, W_in)];
+                    for (int w{0}; w < W_in; ++w)
+                    {
+                        auto x_val = X[LinearizeIndex(n, c, h, w, C, H_in, W_in)];
+                        auto w_val = W[LinearizeIndex(m, c, h, w, C, H_in, W_in)];
+                        Z[LinearizeIndex(n, m, M)] += x_val * w_val;
+                    }
                 }
             }
+            Y[LinearizeIndex(n, m, M)] = Tanh(Z[LinearizeIndex(n, m, M)]);
         }
-        Y[m] = Tanh(Y[m]);
     }
 }
 
@@ -231,21 +249,26 @@ void FullyConnectedLayer::Backward(const float* dE_dY, float* dE_dX)
 
 void FullyConnectedLayer::BackwardX(const float* dE_dY, float* dE_dX)
 {
-    for (int i{0}; i < C * H_in * W_in; ++i)
+    for (int i{0}; i < N * C * H_in * W_in; ++i)
     {
         dE_dX[i] = 0.0f;
     }
 
-    for (int c{0}; c < C; ++c)
+    for (int n{0}; n < N; ++n)
     {
-        for (int h{0}; h < H_in; ++h)
+        for (int c{0}; c < C; ++c)
         {
-            for (int w{0}; w < W_in; ++w)
+            for (int h{0}; h < H_in; ++h)
             {
-                for (int m{0}; m < M; ++m)
+                for (int w{0}; w < W_in; ++w)
                 {
-                    dE_dX[LinearizeIndex(c, h, w, H_in, W_in)] +=
-                        dE_dY[m] * W[LinearizeIndex(m, c, h, w, C, H_in, W_in)];
+                    for (int m{0}; m < M; ++m)
+                    {
+                        dE_dX[LinearizeIndex(n, c, h, w, C, H_in, W_in)] +=
+                            dE_dY[LinearizeIndex(n, m, M)] *
+                            W[LinearizeIndex(m, c, h, w, C, H_in, W_in)] *
+                            dTanh(Z[LinearizeIndex(n, m, M)]);
+                    }
                 }
             }
         }
@@ -267,8 +290,14 @@ void FullyConnectedLayer::BackwardW(const float* dE_dY, float* dE_dW)
             {
                 for (int w{0}; w < W_in; ++w)
                 {
-                    dE_dW[LinearizeIndex(m, c, h, w, C, H_in, W_in)] +=
-                        dE_dY[m] * X_in[LinearizeIndex(c, h, w, H_in, W_in)];
+                    for (int n{0}; n < N; ++n)
+                    {
+                        dE_dW[LinearizeIndex(m, c, h, w, C, H_in, W_in)] +=
+                            dE_dY[LinearizeIndex(n, m, M)] *
+                            X_in[LinearizeIndex(n, c, h, w, M, H_in, W_in)] *
+                            dTanh(Z[LinearizeIndex(n, m, M)]);
+                    }
+                    dE_dW[LinearizeIndex(m, c, h, w, C, H_in, W_in)] /= N;
                 }
             }
         }
@@ -277,32 +306,35 @@ void FullyConnectedLayer::BackwardW(const float* dE_dY, float* dE_dW)
 
 void SoftmaxLayer::Forward(const float* X, float* Y) const
 {
-    float sum{0.0f};
-    for (int m{0}; m < M; ++m)
+    for (int n{0}; n < N; ++n)
     {
-        Y[m] = std::exp(X[m]);
-        sum += Y[m];
-    }
-    for (int m{0}; m < M; ++m)
-    {
-        Y[m] /= sum;
-    }
+        float sum{0.0f};
+        for (int m{0}; m < M; ++m)
+        {
+            Y[LinearizeIndex(n, m, M)] = std::exp(X[LinearizeIndex(n, m, M)]);
+            sum += Y[m];
+        }
+        for (int m{0}; m < M; ++m)
+        {
+            Y[LinearizeIndex(n, m, M)] /= sum;
+        }
 
-    for (int m{0}; m < M; ++m)
-    {
-        Y_out[m] = Y[m];
+        for (int m{0}; m < M; ++m)
+        {
+            Y_out[LinearizeIndex(n, m, M)] = Y[LinearizeIndex(n, m, M)];
+        }
     }
 }
 
 void SoftmaxLayer::Backward(const float* dE_dY, float* dE_dX)
 {
-    for (int i{0}; i < M * H_in * W_in; ++i)
+    for (int n{0}; n < N; ++n)
     {
-        dE_dX[i] = 0.0f;
-    }
-
-    for (int m{0}; m < M; ++m)
-    {
-        dE_dX[m] = dE_dY[m] * Y_out[m] * (1 - Y_out[m]);
+        for (int m{0}; m < M; ++m)
+        {
+            dE_dX[LinearizeIndex(n, m, M)] = dE_dY[LinearizeIndex(n, m, M)] *
+                                             Y_out[LinearizeIndex(n, m, M)] *
+                                             (1 - Y_out[LinearizeIndex(n, m, M)]);
+        }
     }
 }

@@ -10,7 +10,7 @@ class LeNet5Modified : public CNN
 {
    public:
     template <typename TGen, typename TDist>
-    LeNet5Modified(const int N, TGen& gen, TDist& dist)
+    LeNet5Modified(const int N, TGen& gen, TDist& dist) : CNN(N)
     {
         std::unique_ptr<CNNLayer> C1 = std::make_unique<ConvLayer>(N, 6, 1, 28, 28, 5, gen, dist);
         AddLayer(std::move(C1));

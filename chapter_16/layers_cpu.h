@@ -73,8 +73,8 @@ class ConvLayer : public CNNLayer
         {
             W[i] = dist(gen);
         }
-        Z = std::make_unique<float[]>(M * (H_in - K + 1) * (W_in - K + 1));
-        X_in = std::make_unique<float[]>(C * H_in * W_in);
+        Z = std::make_unique<float[]>(N * M * (H_in - K + 1) * (W_in - K + 1));
+        X_in = std::make_unique<float[]>(N * C * H_in * W_in);
     };
 
     /// @brief Forward pass.
@@ -87,7 +87,7 @@ class ConvLayer : public CNNLayer
     /// @param[out] dE_dX Gradient of the loss with respect to the input
     void Backward(const float* dE_dY, float* dE_dX) override;
 
-    int DetermineOutputSize() const override { return M * (H_in - K + 1) * (W_in - K + 1); }
+    int DetermineOutputSize() const override { return N * M * (H_in - K + 1) * (W_in - K + 1); }
 
    private:
     /// @brief Backward pass with respect to the inputs.
@@ -118,6 +118,8 @@ class SubsamplingLayer : public CNNLayer
 {
    public:
     SubsamplingLayer() = delete;
+    SubsamplingLayer(const SubsamplingLayer&) = delete;
+    SubsamplingLayer& operator=(const SubsamplingLayer&) = delete;
 
     /// @brief Constructor.
     /// @param M Number of output feature maps
@@ -137,7 +139,7 @@ class SubsamplingLayer : public CNNLayer
     /// @param[out] dE_dX Gradient of the loss with respect to the input
     void Backward(const float* dE_dY, float* dE_dX) override;
 
-    int DetermineOutputSize() const override { return M * H_in / K * W_in / K; }
+    int DetermineOutputSize() const override { return N * M * H_in / K * W_in / K; }
 
    private:
     /// @brief Factor by which to subsample
@@ -152,6 +154,8 @@ class FullyConnectedLayer : public CNNLayer
 {
    public:
     FullyConnectedLayer() = delete;
+    FullyConnectedLayer(const FullyConnectedLayer&) = delete;
+    FullyConnectedLayer& operator=(const FullyConnectedLayer&) = delete;
 
     /// @brief Constructor.
     /// @param M Number of output feature maps
@@ -170,8 +174,8 @@ class FullyConnectedLayer : public CNNLayer
         {
             W[i] = dist(gen);
         }
-        Z = new float[M];
-        X_in = new float[C * H_in * W_in];
+        Z = new float[N * M];
+        X_in = new float[N * C * H_in * W_in];
     };
 
     ~FullyConnectedLayer()
@@ -191,7 +195,7 @@ class FullyConnectedLayer : public CNNLayer
     /// @param[out] dE_dX Gradient of the loss with respect to the input
     void Backward(const float* dE_dY, float* dE_dX) override;
 
-    int DetermineOutputSize() const override { return M; }
+    int DetermineOutputSize() const override { return N * M; }
 
    private:
     /// @brief Backward pass with respect to the inputs.
@@ -220,11 +224,13 @@ class SoftmaxLayer : public CNNLayer
 {
    public:
     SoftmaxLayer() = delete;
+    SoftmaxLayer(const SoftmaxLayer&) = delete;
+    SoftmaxLayer& operator=(const SoftmaxLayer&) = delete;
 
     /// @brief Constructor.
     /// @param N Batch size
     /// @param M Number of feature maps
-    SoftmaxLayer(const int N, const int M) : CNNLayer{N, M, M, 1, 1} { Y_out = new float[M]; };
+    SoftmaxLayer(const int N, const int M) : CNNLayer{N, M, M, 1, 1} { Y_out = new float[N * M]; };
 
     ~SoftmaxLayer() { delete[] Y_out; }
     /// @brief Forward pass.
@@ -237,7 +243,7 @@ class SoftmaxLayer : public CNNLayer
     /// @param[out] dE_dX Gradient of the loss with respect to the input
     void Backward(const float* dE_dY, float* dE_dX) override;
 
-    int DetermineOutputSize() const override { return M * H_in * W_in; }
+    int DetermineOutputSize() const override { return N * M * H_in * W_in; }
 
    private:
     /// @brief outputs from forward pass

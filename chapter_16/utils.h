@@ -51,4 +51,26 @@ inline float Tanh(const float x) { return std::tanh(x); }
 /// @return 1 - tanh(x)^2
 inline float dTanh(const float x) { return 1.0f - std::pow(Tanh(x), 2); }
 
+/// @brief Convert a label to a one-hot vector.
+/// @param[out] one_hot one-hot vector
+/// @param label label
+/// @param num_classes number of classes
+inline void ConvertToOneHot(float* one_hot, const int label, const int num_classes)
+{
+    for (int i = 0; i < num_classes; ++i)
+    {
+        one_hot[i] = 0.0;
+    }
+    one_hot[label] = 1.0;
+}
+
+inline void ConvertBatchToOneHot(float* one_hot, const unsigned char* labels, const int num_classes,
+                                 const int batch_size)
+{
+    for (int i = 0; i < batch_size; ++i)
+    {
+        ConvertToOneHot(&one_hot[i * num_classes], labels[i], num_classes);
+    }
+}
+
 #endif  // CHAPTER_16_UTILS_H

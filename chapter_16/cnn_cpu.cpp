@@ -1,5 +1,6 @@
 #include "cnn_cpu.h"
 #include <memory>
+#include "utils.h"
 
 void CNN::Forward(const float* X, float* Y) const
 {
@@ -7,7 +8,7 @@ void CNN::Forward(const float* X, float* Y) const
     float* Y_curr = new float[y_size];
     float* Y_prev = new float[y_size];
 
-    for (int i{0}; i < DetermineInputSize(); ++i)
+    for (int i{0}; i < DetermineInputSize() * N; ++i)
     {
         Y_prev[i] = X[i];
     }
@@ -17,7 +18,8 @@ void CNN::Forward(const float* X, float* Y) const
         layer->Forward(Y_prev, Y_curr);
         std::swap(Y_prev, Y_curr);
     }
-    for (int i{0}; i < DetermineOutputSize(); ++i)
+    auto output_size = DetermineOutputSize();
+    for (int i{0}; i < output_size; ++i)
     {
         Y[i] = Y_prev[i];
     }
@@ -28,9 +30,11 @@ void CNN::Forward(const float* X, float* Y) const
 float CNN::ComputeLoss(const float* Y, const float* T) const
 {
     float loss{0.0f};
-    for (int i{0}; i < DetermineOutputSize(); ++i)
+    int num_samples{DetermineOutputSize()};
+    for (int i{0}; i < num_samples; ++i)
     {
-        loss += (Y[i] - T[i]) * (Y[i] - T[i]) / 2;
+        auto diff = (Y[i] - T[i]);
+        loss += diff * diff / 2;
     }
     return loss;
 }

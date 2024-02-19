@@ -4,18 +4,11 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <algorithm>
 #include <random>
 #include "le_net_5_modified.h"
 #include "types/constants.h"
-
-void ConvertToOneHot(float* one_hot, int label, int num_classes)
-{
-    for (int i = 0; i < num_classes; ++i)
-    {
-        one_hot[i] = 0.0;
-    }
-    one_hot[label] = 1.0;
-}
+#include "utils.h"
 
 int main(int argc, char* argv[])
 {
@@ -43,17 +36,17 @@ int main(int argc, char* argv[])
 
     std::random_device rd;
     std::mt19937 gen(rd());
-    std::uniform_real_distribution<float> dis(-1.0, 1.0);
-    const int N{1};
-    LeNet5Modified le_net_5(N, gen, dis);
+    std::uniform_real_distribution<float> dis(-.5, .5);
+    const int batch_size{std::min(32, num_samples)};
+    LeNet5Modified le_net_5(batch_size, gen, dis);
 
     auto input_size = le_net_5.DetermineInputSize();
     auto output_size = le_net_5.DetermineOutputSize();
-    float* Y = new float[output_size];
     unsigned char* T = new unsigned char[num_samples];
     float* X = new float[num_samples * input_size];
+    float* Y = new float[output_size];
 
-    int scanf_result;
+    int scanf_result{};
 
     fseek(labels_file_ptr, 16, SEEK_SET);
     char temp;
@@ -90,35 +83,36 @@ int main(int argc, char* argv[])
         return 1;
     }
 
-    // float delta_loss{1.0f};
-    // float prev_loss{0.0f};
     int iter{0};
-    int sample_to_use{0};
+    int batch{0};
 
     float* expected_output = new float[output_size];
     while (iter < 100)
     {
-        le_net_5.Forward(&X[sample_to_use * input_size], Y);
-        // print prediction
-        printf("Prediction: ");
-        for (int i = 0; i < output_size; ++i)
-        {
-            printf("%f ", Y[i]);
-        }
-        printf("\n");
+        le_net_5.Forward(&X[batch * batch_size * input_size], Y);
 
-        ConvertToOneHot(expected_output, T[sample_to_use], output_size);
+        ConvertBatchToOneHot(expected_output, &T[batch * batch_size], 10, batch_size);
         auto loss = le_net_5.ComputeLoss(Y, expected_output);
+        printf("Iteration: %d\n", iter);
         printf("Loss: %f\n", loss);
-        // delta_loss = abs(prev_loss - loss);
-        // prev_loss = loss;
 
         le_net_5.Backward(Y, expected_output);
         iter++;
     }
 
-    delete[] expected_output;
+    // Print the predictions for up to the first 10 samples
+    le_net_5.Forward(X, Y);
+    for (int i = 0; i < std::min(10, batch_size); ++i)
+    {
+        printf("Prediction: ");
+        printf("%ld ", std::max_element(Y + i * 10, Y + (i + 1) * 10) - (Y + i * 10));
+        printf("Actual: ");
+        printf("%d\n", T[i]);
+        printf("\n");
+    }
+
     delete[] Y;
+    delete[] expected_output;
     delete[] T;
     delete[] X;
 
