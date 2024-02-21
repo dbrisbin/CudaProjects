@@ -4,10 +4,10 @@ NVCC = nvcc
 CFLAGS = -Wall,-Werror,-Wextra
 CUCOMPILEFLAGS = --device-c
 
-CU_SRCS = 
-CPP_SRCS = main.cpp le_net_5_modified.cpp layers_cpu.cpp cnn_cpu.cpp
+CU_SRCS = fhd_driver.cu fhd.cu
+CPP_SRCS = main.cpp
 OBJS = $(CU_SRCS:.cu=.o) $(CPP_SRCS:.cpp=.o)
-EXECUTABLE=cnn
+EXECUTABLE=fhd
 
 DBGDIR = debug
 DBGEXE = $(DBGDIR)/$(EXECUTABLE)
@@ -19,13 +19,13 @@ RELEXE = $(RELDIR)/$(EXECUTABLE)
 RELOBJS = $(addprefix $(RELDIR)/, $(OBJS))
 RELFLAGS = -O3 -DNDEBUG
 
-GENERATOR_SRC = 
-GENERATOR_EXE = 
+GENERATOR_SRC = generate_fhd_data.cpp
+GENERATOR_EXE = generate_fhd_data
 
 DOC_CONFIG = doxygen.conf
 DOC_DIRS = html latex
 
-.PHONY: all clean debug release remake documentation generate_adjacency_matrix_data
+.PHONY: all clean debug release remake documentation generate_fhd_data
 
 debug: $(DBGEXE)
 
@@ -58,7 +58,8 @@ $(RELDIR)/%.o: %.cpp
 	@mkdir -p $(RELDIR)
 	$(NVCC) -c --compiler-options $(CFLAGS) $(CUCOMPILEFLAGS) $(RELFLAGS) -o $@ $^
 
-
+generate_fhd_data:
+	$(NVCC) -o $(GENERATOR_EXE) $(GENERATOR_SRC)
 
 documentation:
 	doxygen $(DOC_CONFIG)
