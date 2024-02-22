@@ -16,7 +16,9 @@ enum FhdKernels
     kLoopInterchangeWithRegisters = 2,
     kLoopInterchangeWithRegistersAndRestrict = 3,
     kLoopInterchangeWithRegistersAndConstantMem = 4,
-    kNumKernels = 5,
+    kLoopInterchangeWithRegistersAndConstantMemStruct = 5,
+    kLoopInterchangeWithRegistersAndConstantMemStructAndDeviceTrig = 6,
+    kNumKernels = 7,
 };
 
 #endif  // CHAPTER_17_TYPES_CONSTANTS_H

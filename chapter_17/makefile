@@ -30,32 +30,32 @@ debug: $(DBGEXE)
 
 $(DBGEXE):	$(DBGOBJS)
 	@mkdir -p $(DBGDIR)
-	$(NVCC) --compiler-options $(CFLAGS) $(DBGFLAGS) -o $(DBGEXE) $^
+	$(NVCC) $(USER_DEFINES) --compiler-options $(CFLAGS) $(DBGFLAGS) -o $(DBGEXE) $^
 
 
 $(DBGDIR)/%.o: %.cu
 	@mkdir -p $(DBGDIR)
 	@mkdir -p $(DBGDIR)/types
-	$(NVCC) --compiler-options $(CFLAGS) $(CUCOMPILEFLAGS) $(DBGFLAGS) -o $@ $<
+	$(NVCC) $(USER_DEFINES) --compiler-options $(CFLAGS) $(CUCOMPILEFLAGS) $(DBGFLAGS) -o $@ $<
 
 $(DBGDIR)/%.o: %.cpp
 	@mkdir -p $(DBGDIR)
 	@mkdir -p $(DBGDIR)/types
-	$(NVCC) -c --compiler-options $(CFLAGS) $(DBGFLAGS) -o $@ $<
+	$(NVCC) $(USER_DEFINES) -c --compiler-options $(CFLAGS) $(DBGFLAGS) -o $@ $<
 
 release: $(RELEXE)
 
 $(RELEXE): $(RELOBJS)
 	@mkdir -p $(RELDIR)
-	$(NVCC) --compiler-options $(CFLAGS) $(RELFLAGS) -o $(RELEXE) $^
+	$(NVCC) $(USER_DEFINES) --compiler-options $(CFLAGS) $(RELFLAGS) -o $(RELEXE) $^
 
 $(RELDIR)/%.o: %.cu
 	@mkdir -p $(RELDIR)
-	$(NVCC) -c --compiler-options $(CFLAGS) $(CUCOMPILEFLAGS) $(RELFLAGS) -o $@ $^
+	$(NVCC) $(USER_DEFINES) -c --compiler-options $(CFLAGS) $(CUCOMPILEFLAGS) $(RELFLAGS) -o $@ $^
 
 $(RELDIR)/%.o: %.cpp
 	@mkdir -p $(RELDIR)
-	$(NVCC) -c --compiler-options $(CFLAGS) $(CUCOMPILEFLAGS) $(RELFLAGS) -o $@ $^
+	$(NVCC) $(USER_DEFINES) -c --compiler-options $(CFLAGS) $(CUCOMPILEFLAGS) $(RELFLAGS) -o $@ $^
 
 generate_fhd_data:
 	$(NVCC) -o $(GENERATOR_EXE) $(GENERATOR_SRC)
@@ -63,7 +63,7 @@ generate_fhd_data:
 documentation:
 	doxygen $(DOC_CONFIG)
 
-all: debug release generate_adjacency_matrix_data documentation
+all: debug release generate_fhd_data documentation
 
 clean:
 	rm -f $(RELEXE) $(RELOBJS) $(DBGEXE) $(DBGOBJS) $(GENERATOR_EXE) convert_coo_to_csr

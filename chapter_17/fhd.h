@@ -3,8 +3,15 @@
 
 #include <cuda_runtime.h>
 #include "types/constants.h"
+#include "types/types.h"
 
+#ifdef USE_STRUCT
+extern __constant__ KData k_c[kChunkSize];
+extern __constant__ float k_x_c[1], k_y_c[1], k_z_c[1];
+#else
+extern __constant__ KData k_c[1];
 extern __constant__ float k_x_c[kChunkSize], k_y_c[kChunkSize], k_z_c[kChunkSize];
+#endif
 
 /// @brief Basic kernel for the FHD algorithm with no optimizations.
 /// @param r_phi The real part of the phase.
@@ -76,7 +83,8 @@ __global__ void ComputeFHDWithNThreadsAndRegisters(const float* x, const float* 
                                                    const float* i_mu, const int M, const int N,
                                                    float* r_fhd, float* i_fhd);
 
-/// @brief Kernel to compute the FHD with precomputed mu exploiting loop interchange and registers.
+/// @brief Kernel to compute the FHD with precomputed mu exploiting loop interchange, registers and
+/// restrict.
 /// @param x The x coordinates.
 /// @param k_x The x wave numbers.
 /// @param y The y coordinates.
@@ -94,7 +102,8 @@ __global__ void ComputeFHDWithNThreadsRegistersAndRestrict(
     const float* z, const float* __restrict__ k_z, const float* __restrict__ r_mu,
     const float* __restrict__ i_mu, const int M, const int N, float* r_fhd, float* i_fhd);
 
-/// @brief Kernel to compute the FHD with precomputed mu exploiting loop interchange and registers.
+/// @brief Kernel to compute the FHD with precomputed mu exploiting loop interchange, registers and
+/// constant memory.
 /// @param x The x coordinates.
 /// @param y The y coordinates.
 /// @param z The z coordinates.
@@ -110,5 +119,37 @@ __global__ void ComputeFHDWithNThreadsRegistersAndConstantMem(const float* x, co
                                                               const float* i_mu, const int M,
                                                               const int N, const int M_offset,
                                                               float* r_fhd, float* i_fhd);
+
+/// @brief Kernel to compute the FHD with precomputed mu exploiting loop interchange, registers, and
+/// constant memory with struct underlying type.
+/// @param x The x coordinates.
+/// @param y The y coordinates.
+/// @param z The z coordinates.
+/// @param r_mu The real part of the mu.
+/// @param i_mu The imaginary part of the mu.
+/// @param M The number of elements in the x, y, and z arrays.
+/// @param N The number of elements in the r_mu and i_mu arrays.
+/// @param M_offset The offset for indexing r_mu and i_mu.
+/// @param r_fhd The real part of the FHD.
+/// @param i_fhd The imaginary part of the FHD.
+__global__ void ComputeFHDWithNThreadsRegistersAndConstantMemStruct(
+    const float* x, const float* y, const float* z, const float* r_mu, const float* i_mu,
+    const int M, const int N, const int M_offset, float* r_fhd, float* i_fhd);
+
+/// @brief Kernel to compute the FHD with precomputed mu exploiting loop interchange, registers, and
+/// constant memory with struct underlying type.
+/// @param x The x coordinates.
+/// @param y The y coordinates.
+/// @param z The z coordinates.
+/// @param r_mu The real part of the mu.
+/// @param i_mu The imaginary part of the mu.
+/// @param M The number of elements in the x, y, and z arrays.
+/// @param N The number of elements in the r_mu and i_mu arrays.
+/// @param M_offset The offset for indexing r_mu and i_mu.
+/// @param r_fhd The real part of the FHD.
+/// @param i_fhd The imaginary part of the FHD.
+__global__ void ComputeFHDWithNThreadsRegistersAndConstantMemStructDeviceTrig(
+    const float* x, const float* y, const float* z, const float* r_mu, const float* i_mu,
+    const int M, const int N, const int M_offset, float* r_fhd, float* i_fhd);
 
 #endif  // CHAPTER_17_FHD_H

@@ -25,7 +25,7 @@ GENERATOR_EXE =
 DOC_CONFIG = doxygen.conf
 DOC_DIRS = html latex
 
-.PHONY: all clean debug release remake documentation generate_adjacency_matrix_data
+.PHONY: all clean debug release remake documentation
 
 debug: $(DBGEXE)
 
@@ -63,7 +63,7 @@ $(RELDIR)/%.o: %.cpp
 documentation:
 	doxygen $(DOC_CONFIG)
 
-all: debug release generate_adjacency_matrix_data documentation
+all: debug release documentation
 
 clean:
 	rm -f $(RELEXE) $(RELOBJS) $(DBGEXE) $(DBGOBJS) $(GENERATOR_EXE) convert_coo_to_csr

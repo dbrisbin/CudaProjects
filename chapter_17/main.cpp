@@ -9,6 +9,7 @@
 #include <vector>
 #include "fhd_driver.h"
 #include "types/constants.h"
+#include "types/types.h"
 
 void FhdCpu(const float* r_phi, const float* r_d, const float* i_phi, const float* i_d,
             const float* x, const float* k_x, const float* y, const float* k_y, const float* z,
@@ -35,10 +36,11 @@ void FhdCpu(const float* r_phi, const float* r_d, const float* i_phi, const floa
 int main(int argc, char* argv[])
 {
     std::vector<std::string> args(argv, argv + argc);
-    if (args.size() < 3 || args.size() > 5)
+    if (args.size() < 3 || args.size() > 6)
     {
         std::cout << "Usage:\t" << argv[0] << "\tinput_file\tkernel_to_use (0-"
-                  << FhdKernels::kNumKernels - 1 << ")\t[check_result (0/1) default=0]"
+                  << FhdKernels::kNumKernels - 1
+                  << ")\t[check_result (0/1) default=0]\t[optimize_block_size (0/1) default=0]"
                   << std::endl;
         return 1;
     }
@@ -57,7 +59,8 @@ int main(int argc, char* argv[])
         return 1;
     }
 
-    const bool check_result{(args.size() == 4) ? (std::stoi(args[3]) != 0) : false};
+    const bool check_result{(args.size() >= 4) ? (std::stoi(args[3]) != 0) : false};
+    const bool optimize_block_size{(args.size() == 5) ? (std::stoi(args[4]) != 0) : false};
 
     int M;
     int N;
@@ -91,11 +94,42 @@ int main(int argc, char* argv[])
 
     file_ptr.close();
 
-    // compute the actual scan.
-    const int iters{1};
-    const float time{FhdDriver(r_phi.get(), r_d.get(), i_phi.get(), i_d.get(), x.get(), k_x.get(),
-                               y.get(), k_y.get(), z.get(), k_z.get(), M, N, r_fhd_actual.get(),
-                               i_fhd_actual.get(), kernel_to_use, iters)};
+    auto k_struct = std::make_unique<KData[]>(M);
+    for (int m{0}; m < M; ++m)
+    {
+        k_struct[m].x = k_x[m];
+        k_struct[m].y = k_y[m];
+        k_struct[m].z = k_z[m];
+    }
+    const int iters{10};
+    float time{0.F};
+    if (optimize_block_size)
+    {
+        std::array<int, 15> block_sizes{1,   2,   4,   8,   16,  32,  64,  128,
+                                        256, 384, 512, 640, 768, 896, 1024};
+        std::array<float, 15> times;
+        for (int i{0}; i < 15; ++i)
+        {
+            times[i] = FhdDriver(r_phi.get(), r_d.get(), i_phi.get(), i_d.get(), x.get(), k_x.get(),
+                                 y.get(), k_y.get(), z.get(), k_z.get(), k_struct.get(), M, N,
+                                 r_fhd_actual.get(), i_fhd_actual.get(), kernel_to_use, iters,
+                                 block_sizes[i]);
+        }
+        std::cout << "Block size:\tTime (ms)" << std::endl;
+        for (int i{0}; i < 15; ++i)
+        {
+            std::cout << block_sizes[i] << ":\t" << times[i] << std::endl;
+        }
+        time = *std::min_element(times.begin(), times.end());
+    }
+    else
+    {
+        // compute the actual scan.
+        time =
+            FhdDriver(r_phi.get(), r_d.get(), i_phi.get(), i_d.get(), x.get(), k_x.get(), y.get(),
+                      k_y.get(), z.get(), k_z.get(), k_struct.get(), M, N, r_fhd_actual.get(),
+                      i_fhd_actual.get(), kernel_to_use, iters, SECTION_SIZE);
+    }
 
     if (check_result)
     {  // compute the CPU scan.
