@@ -1,8 +1,7 @@
 
-
 NVCC = nvcc
 CFLAGS = -Wall,-Werror,-Wextra
-CUCOMPILEFLAGS = --device-c
+CUCOMPILEFLAGS = --device-c --gpu-architecture=sm_50
 
 CU_SRCS = fhd_driver.cu fhd.cu
 CPP_SRCS = main.cpp
@@ -37,12 +36,12 @@ $(DBGEXE):	$(DBGOBJS)
 $(DBGDIR)/%.o: %.cu
 	@mkdir -p $(DBGDIR)
 	@mkdir -p $(DBGDIR)/types
-	$(NVCC) -c --compiler-options $(CFLAGS) $(CUCOMPILEFLAGS) $(DBGFLAGS) -o $@ $<
+	$(NVCC) --compiler-options $(CFLAGS) $(CUCOMPILEFLAGS) $(DBGFLAGS) -o $@ $<
 
 $(DBGDIR)/%.o: %.cpp
 	@mkdir -p $(DBGDIR)
 	@mkdir -p $(DBGDIR)/types
-	$(NVCC) -c  --compiler-options $(CFLAGS) $(CUCOMPILEFLAGS) $(DBGFLAGS) -o $@ $<
+	$(NVCC) -c --compiler-options $(CFLAGS) $(DBGFLAGS) -o $@ $<
 
 release: $(RELEXE)
 

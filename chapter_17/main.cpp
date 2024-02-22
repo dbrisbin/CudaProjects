@@ -35,10 +35,11 @@ void FhdCpu(const float* r_phi, const float* r_d, const float* i_phi, const floa
 int main(int argc, char* argv[])
 {
     std::vector<std::string> args(argv, argv + argc);
-    if (args.size() != 4)
+    if (args.size() < 3 || args.size() > 5)
     {
-        std::cout << "Usage: " << argv[0] << " <input_file> <kernel_to_use (0-"
-                  << FhdKernels::kNumKernels - 1 << ")> <check_result (0/1)>" << std::endl;
+        std::cout << "Usage:\t" << argv[0] << "\tinput_file\tkernel_to_use (0-"
+                  << FhdKernels::kNumKernels - 1 << ")\t[check_result (0/1) default=0]"
+                  << std::endl;
         return 1;
     }
 
@@ -55,7 +56,8 @@ int main(int argc, char* argv[])
         std::cout << "Invalid kernel number " << args[2] << "." << std::endl;
         return 1;
     }
-    bool check_result = std::stoi(args[3]);
+
+    const bool check_result{(args.size() == 4) ? (std::stoi(args[3]) != 0) : false};
 
     int M;
     int N;
@@ -90,10 +92,10 @@ int main(int argc, char* argv[])
     file_ptr.close();
 
     // compute the actual scan.
-    const int iters = 10;
-    float time = FhdDriver(r_phi.get(), r_d.get(), i_phi.get(), i_d.get(), x.get(), k_x.get(),
-                           y.get(), k_y.get(), z.get(), k_z.get(), M, N, r_fhd_actual.get(),
-                           i_fhd_actual.get(), kernel_to_use, iters);
+    const int iters{1};
+    const float time{FhdDriver(r_phi.get(), r_d.get(), i_phi.get(), i_d.get(), x.get(), k_x.get(),
+                               y.get(), k_y.get(), z.get(), k_z.get(), M, N, r_fhd_actual.get(),
+                               i_fhd_actual.get(), kernel_to_use, iters)};
 
     if (check_result)
     {  // compute the CPU scan.
@@ -114,10 +116,10 @@ int main(int argc, char* argv[])
         std::chrono::duration<float, std::milli> duration = end_time - start_time;
 
         // compare the results.
-        float max_diff_r = 0.0f;
-        float max_diff_i = 0.0f;
-        int max_diff_index_r = 0;
-        int max_diff_index_i = 0;
+        float max_diff_r{0.F};
+        float max_diff_i{0.F};
+        int max_diff_index_r{0};
+        int max_diff_index_i{0};
 
         for (int n{0}; n < N; ++n)
         {
