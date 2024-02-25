@@ -13,6 +13,13 @@
 #include "types/types.h"
 #include "utils.h"
 
+/// @brief CPU implementation of the DCS algorithm.
+/// @param energy_grid The energy grid to be computed.
+/// @param grid_size The size of the energy grid.
+/// @param spacing The spacing between the grid points.
+/// @param z The z coordinate of the layer.
+/// @param atoms The atoms to be used in the computation.
+/// @param num_atoms The number of atoms.
 void DcsCpu(float* energy_grid, const dim3 grid_size, const float spacing, const float z,
             const Atom* atoms, const unsigned int num_atoms)
 {
@@ -66,15 +73,13 @@ int main(int argc, char* argv[])
 
     const bool check_result{(args.size() == 4) ? (std::stoi(args[3]) != 0) : false};
 
-    unsigned int X;
-    unsigned int Y;
-    unsigned int Z;
-    unsigned int N;
-    file_ptr >> X >> Y >> Z >> N;
+    dim3 grid_size{};
+    unsigned int N{};
+    file_ptr >> grid_size.x >> grid_size.y >> grid_size.z >> N;
 
     auto atoms = std::make_unique<Atom[]>(N);
 
-    auto energy_grid = std::make_unique<float[]>(X * Y * Z);
+    auto energy_grid = std::make_unique<float[]>(grid_size.x * grid_size.y * grid_size.z);
 
     for (unsigned int i{0U}; i < N; ++i)
     {
@@ -85,25 +90,24 @@ int main(int argc, char* argv[])
     const int iters{10};
     float time{0.F};
     const float spacing{0.1F};
-    // compute the actual scan.
-    // time =
-    //     FhdDriver(r_phi.get(), r_d.get(), i_phi.get(), i_d.get(), x.get(), k_x.get(), y.get(),
-    //               k_y.get(), z.get(), k_z.get(), k_struct.get(), M, N, r_fhd_actual.get(),
-    //               i_fhd_actual.get(), kernel_to_use, iters, SECTION_SIZE);
+
+    // Compute the actual value
+    time = DcsDriver(energy_grid.get(), grid_size, spacing, atoms.get(), N, kernel_to_use, iters);
 
     if (check_result)
-    {  // compute the CPU scan.
-        auto energy_grid_expected = std::make_unique<float[]>(X * Y * Z);
-        std::fill(energy_grid_expected.get(), energy_grid_expected.get() + X * Y * Z, 0.F);
+    {
+        auto energy_grid_expected =
+            std::make_unique<float[]>(grid_size.x * grid_size.y * grid_size.z);
+        std::fill(energy_grid_expected.get(),
+                  energy_grid_expected.get() + grid_size.x * grid_size.y * grid_size.z, 0.F);
 
         // time the CPU scan.
-
         std::chrono::high_resolution_clock::time_point start_time =
             std::chrono::high_resolution_clock::now();
-        for (unsigned int z{0}; z < Z; ++z)
+        for (unsigned int k{0U}; k < grid_size.z; ++k)
         {
-            DcsCpu(&energy_grid_expected[LinearizeIndex(0, 0, z, X, Y)], dim3{X, Y, Z}, spacing,
-                   z * spacing, atoms.get(), N);
+            DcsCpu(&energy_grid_expected[LinearizeIndex(0, 0, k, grid_size.x, grid_size.y)],
+                   grid_size, spacing, k * spacing, atoms.get(), N);
         }
         std::chrono::high_resolution_clock::time_point end_time =
             std::chrono::high_resolution_clock::now();
@@ -113,28 +117,13 @@ int main(int argc, char* argv[])
         float max_diff{0.F};
         int max_diff_index{0};
 
-        for (unsigned int n{0U}; n < X * Y * Z; ++n)
+        for (unsigned int n{0U}; n < grid_size.x * grid_size.y * grid_size.z; ++n)
         {
             if (std::abs(energy_grid[n] - energy_grid_expected[n]) > max_diff)
             {
                 max_diff = std::abs(energy_grid[n] - energy_grid_expected[n]);
                 max_diff_index = n;
             }
-        }
-
-        // print result
-        for (unsigned int z{0}; z < Z; ++z)
-        {
-            std::cout << "z = " << z * spacing << std::endl;
-            for (unsigned int j{0U}; j < Y; ++j)
-            {
-                for (unsigned int i{0U}; i < X; ++i)
-                {
-                    std::cout << energy_grid_expected[LinearizeIndex(i, j, z, X, Y)] << " ";
-                }
-                std::cout << std::endl;
-            }
-            std::cout << std::endl;
         }
         std::cout << "Max difference: " << max_diff << " at index " << max_diff_index << std::endl;
         std::cout << "Time on CPU: " << duration.count() << " milliseconds for 1 iteration."
