@@ -27,6 +27,18 @@ void MemcpyBezierLinesToHost(BezierLineFixedSize* dst, const BezierLineFixedSize
     }
 }
 
+void MemcpyBezierLinesToHost(BezierLineDynamic* dst, const BezierLineDynamic* src,
+                             const unsigned int N)
+{
+    cudaMemcpy(dst, src, N * sizeof(BezierLineDynamic), cudaMemcpyDeviceToHost);
+    for (unsigned int i{0U}; i < N; ++i)
+    {
+        dst[i].vertex_pos = new float2[dst[i].num_vertices];
+        cudaMemcpy(&dst[i].vertex_pos, &src[i].vertex_pos, dst[i].num_vertices * sizeof(float2),
+                   cudaMemcpyDeviceToHost);
+    }
+}
+
 /// @brief Compute the quadratic Bezier curve.
 /// @param[in,out] lines The quadratic Bezier curves.
 /// @param num_lines The number of quadratic Bezier curves.
@@ -139,9 +151,9 @@ int main(int argc, char* argv[])
             cudaMalloc(&d_lines, N * sizeof(BezierLineDynamic));
             cudaMemcpy(d_lines, curves_dynamic.get(), N * sizeof(BezierLineDynamic),
                        cudaMemcpyHostToDevice);
-            ComputeBezierLinesDynamic<<<N, 32>>>(d_lines, N);
-            cudaMemcpy(curves_dynamic.get(), d_lines, N * sizeof(BezierLineDynamic),
-                       cudaMemcpyDeviceToHost);
+            ComputeBezierLinesDynamic<<<std::ceil(static_cast<float>(N) / 32), 32>>>(d_lines, N);
+            MemcpyBezierLinesToHost(curves_dynamic.get(), d_lines, N);
+            FreeVertexMem<<<std::ceil(static_cast<float>(N) / 32), 32>>>(d_lines, N);
             cudaFree(d_lines);
         }
     }
@@ -183,6 +195,12 @@ int main(int argc, char* argv[])
     }
     std::cout << "Time on GPU: " << gpu_duration.count() << " milliseconds for " << iters
               << " iterations." << std::endl;
+
+    // Free the memory.
+    for (unsigned int i{0U}; i < N; ++i)
+    {
+        delete[] curves_dynamic[i].vertex_pos;
+    }
 
     return 0;
 }
